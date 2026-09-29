@@ -1,15 +1,24 @@
 {{>licenseInfo}}
 {{#models}}
 {{#model}}
+{{#vendorExtensions.x-one-of}}
+import type { {{classname}} } from './{{filename}}';
+{{/vendorExtensions.x-one-of}}
+{{^vendorExtensions.x-is-one-of}}
 {{#tsImports}}
 import type { {{classname}} } from './{{filename}}';
 {{/tsImports}}
+{{/vendorExtensions.x-is-one-of}}
 
 {{#description}}
 /**
  * {{{.}}}
  */
 {{/description}}
+{{#vendorExtensions.x-is-one-of}}
+export type {{classname}} = {{#vendorExtensions.x-one-of}}{{classname}}{{^-last}} | {{/-last}}{{/vendorExtensions.x-one-of}};
+{{/vendorExtensions.x-is-one-of}}
+{{^vendorExtensions.x-is-one-of}}
 {{#isEnum}}
 export type {{classname}} = {{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}};
 
@@ -49,5 +58,6 @@ export const {{classname}}{{enumName}}Values = [{{#allowableValues}}{{#enumVars}
 export type {{classname}} = {{#vendorExtensions.x-is-type-alias}}{{{vendorExtensions.x-type-alias-value}}}{{/vendorExtensions.x-is-type-alias}}{{^vendorExtensions.x-is-type-alias}}Record<string, unknown>{{/vendorExtensions.x-is-type-alias}};
 {{/hasVars}}
 {{/isEnum}}
+{{/vendorExtensions.x-is-one-of}}
 {{/model}}
 {{/models}}
