@@ -433,6 +433,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         operations.put("hasMutationOperations", !mutationOperations.isEmpty());
         operations.put("hasInlineResources", useHttpResource && !separateResources && !getOperations.isEmpty());
         operations.put("hasServiceClass", !mutationOperations.isEmpty() || !getOperations.isEmpty());
+        // Only file downloads return HttpResponse; importing it anywhere else fails under noUnusedLocals.
+        operations.put("usesHttpResponse", ops.stream().anyMatch(op -> op.isResponseFile));
 
         // Step 6: Collect model imports and map to kebab-case file paths
         Set<String> modelImports = new LinkedHashSet<>();

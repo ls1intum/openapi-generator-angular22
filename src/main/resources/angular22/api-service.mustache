@@ -4,7 +4,7 @@
  * @generated from OpenAPI specification
  */
 {{#operations.hasServiceClass}}
-import { HttpClient, HttpResponse } from '@angular/common/http';
+import { HttpClient{{#operations.usesHttpResponse}}, HttpResponse{{/operations.usesHttpResponse}} } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 {{/operations.hasServiceClass}}
