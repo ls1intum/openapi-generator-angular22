@@ -412,6 +412,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
                 }
             }
 
+            markOperationObservingResponse(op);
+
             // Step 3 & 4: Process parameters
             processPathParameters(op);
             processQueryParameters(op);
@@ -433,6 +435,10 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         operations.put("hasMutationOperations", !mutationOperations.isEmpty());
         operations.put("hasInlineResources", useHttpResource && !separateResources && !getOperations.isEmpty());
         operations.put("hasServiceClass", !mutationOperations.isEmpty() || !getOperations.isEmpty());
+        // Only file downloads and operations with response headers return HttpResponse; importing it
+        // anywhere else fails under noUnusedLocals.
+        operations.put("usesHttpResponse", ops.stream().anyMatch(op -> op.isResponseFile
+                || Boolean.TRUE.equals(op.vendorExtensions.get("x-observe-response"))));
 
         // Step 6: Collect model imports and map to kebab-case file paths
         Set<String> modelImports = new LinkedHashSet<>();
@@ -648,6 +654,22 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             }
         }
         return true;
+    }
+
+    /**
+     * Marks an operation whose responses declare headers with {@code x-observe-response}. Angular's
+     * {@code HttpClient} exposes response headers only with {@code observe: 'response'}, so such an
+     * operation returns {@code HttpResponse<T>} instead of the body.
+     *
+     * <p>The flag is also set on the body parameter: inside {@code {{#bodyParam}}} the template resolves
+     * {@code vendorExtensions} on the parameter, which hides the operation's.</p>
+     */
+    private void markOperationObservingResponse(CodegenOperation op) {
+        boolean declaresResponseHeaders = op.responses.stream().anyMatch(response -> response.headers != null && !response.headers.isEmpty());
+        op.vendorExtensions.put("x-observe-response", declaresResponseHeaders);
+        if (op.bodyParam != null) {
+            op.bodyParam.vendorExtensions.put("x-observe-response", declaresResponseHeaders);
+        }
     }
 
     /**
