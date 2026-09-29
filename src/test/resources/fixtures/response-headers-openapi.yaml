@@ -1,0 +1,93 @@
+openapi: 3.1.1
+info:
+  title: Response Headers API
+  version: 1.0.0
+tags:
+  - name: question
+  - name: course
+paths:
+  /api/questions:
+    get:
+      tags:
+        - question
+      operationId: getQuestions
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            format: int32
+      responses:
+        '200':
+          description: One page of questions
+          headers:
+            X-Has-Next:
+              description: Whether another page exists
+              schema:
+                type: boolean
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    post:
+      tags:
+        - question
+      operationId: createQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: The created question
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/questions/import:
+    post:
+      tags:
+        - question
+      operationId: importQuestions
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        '200':
+          description: The number of imported questions
+          headers:
+            X-Imported:
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                type: integer
+                format: int32
+  /api/courses:
+    get:
+      tags:
+        - course
+      operationId: getCourses
+      responses:
+        '200':
+          description: All courses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
