@@ -1,0 +1,53 @@
+openapi: 3.1.1
+info:
+  title: HttpResponse Import API
+  version: 1.0.0
+tags:
+  - name: course
+  - name: export
+paths:
+  /api/courses/{courseId}:
+    put:
+      tags:
+        - course
+      operationId: updateCourseTitle
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: The new title
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/courses/{courseId}/export:
+    post:
+      tags:
+        - export
+      operationId: exportCourse
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The course archive
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
