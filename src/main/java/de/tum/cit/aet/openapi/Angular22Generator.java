@@ -415,6 +415,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             // Step 3 & 4: Process parameters
             processPathParameters(op);
             processQueryParameters(op);
+            processFileFormParameters(op);
 
             // Step 5: Build TypeScript template literal URLs
             String originalPath = originalPaths.getOrDefault(op.operationId, op.path);
@@ -505,6 +506,30 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             op.vendorExtensions.put("x-all-query-params-optional", allOptional);
         } else {
             op.vendorExtensions.put("x-has-query-params", false);
+        }
+    }
+
+    /**
+     * Types multipart file parts as {@code File} instead of the parent generator's {@code Blob}, and marks
+     * them with {@code x-is-file} so the template appends them with their name. Only a {@code File} carries
+     * a name; without it the browser names every part {@code blob}, and a server that reads the original
+     * file name cannot tell the parts apart. Downloads keep {@code Blob}, which is what {@code HttpClient}
+     * returns.
+     *
+     * <p>{@code allParams} and {@code formParams} hold separate copies, so both are updated.</p>
+     *
+     * @param op the operation whose form parameters should be processed
+     */
+    private void processFileFormParameters(CodegenOperation op) {
+        for (List<CodegenParameter> params : List.of(op.allParams, op.formParams)) {
+            for (CodegenParameter param : params) {
+                boolean isFilePart = param.isFormParam && (param.isFile || param.isBinary
+                        || (param.items != null && (param.items.isFile || param.items.isBinary)));
+                if (isFilePart) {
+                    param.dataType = param.dataType.replace("Blob", "File");
+                    param.vendorExtensions.put("x-is-file", true);
+                }
+            }
         }
     }
 

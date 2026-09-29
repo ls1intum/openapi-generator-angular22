@@ -1,0 +1,44 @@
+openapi: 3.1.1
+info:
+  title: File Parts API
+  version: 1.0.0
+tags:
+  - name: upload
+paths:
+  /api/uploads:
+    post:
+      tags:
+        - upload
+      operationId: uploadFiles
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                cover:
+                  type: string
+                  format: binary
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Uploaded
+  /api/uploads/archive:
+    post:
+      tags:
+        - upload
+      operationId: downloadArchive
+      responses:
+        '200':
+          description: The archive
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary

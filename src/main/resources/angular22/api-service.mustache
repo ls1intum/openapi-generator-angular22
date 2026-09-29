@@ -60,10 +60,10 @@ export class {{classname}} {
 {{#formParams}}
         if ({{paramName}} !== undefined && {{paramName}} !== null) {
 {{#isArray}}
-            {{paramName}}.forEach(item => formData.append('{{baseName}}', item));
+            {{paramName}}.forEach(item => formData.append('{{baseName}}', item{{#vendorExtensions.x-is-file}}, item.name{{/vendorExtensions.x-is-file}}));
 {{/isArray}}
 {{^isArray}}
-            formData.append('{{baseName}}', {{paramName}});
+            formData.append('{{baseName}}', {{paramName}}{{#vendorExtensions.x-is-file}}, {{paramName}}.name{{/vendorExtensions.x-is-file}});
 {{/isArray}}
         }
 {{/formParams}}
