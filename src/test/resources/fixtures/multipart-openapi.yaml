@@ -1,0 +1,144 @@
+openapi: 3.1.1
+info:
+  title: Multipart API
+  version: 1.0.0
+tags:
+  - name: upload
+paths:
+  /api/uploads:
+    post:
+      tags:
+        - upload
+      operationId: createUpload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - course
+              properties:
+                course:
+                  $ref: '#/components/schemas/CourseCreate'
+                file:
+                  type: string
+                  format: binary
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                name:
+                  type: string
+                count:
+                  type: integer
+                  format: int32
+                ratio:
+                  type: number
+                active:
+                  type: boolean
+                mode:
+                  $ref: '#/components/schemas/UploadMode'
+                pages:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Page'
+                labels:
+                  type: object
+                  additionalProperties:
+                    type: string
+                tags:
+                  type: array
+                  uniqueItems: true
+                  items:
+                    type: string
+                sections:
+                  type: array
+                  uniqueItems: true
+                  items:
+                    $ref: '#/components/schemas/Page'
+                modes:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - DRAFT
+                      - FINAL
+                modeRefs:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/UploadMode'
+                "it's":
+                  type: string
+                jsonLabels:
+                  type: array
+                  items:
+                    type: string
+                anyItems:
+                  type: array
+                  items: {}
+                dates:
+                  type: array
+                  items:
+                    type: string
+                    format: date-time
+                vendorLabels:
+                  type: array
+                  items:
+                    type: string
+                due:
+                  type: string
+                  format: date-time
+                day:
+                  type: string
+                  format: date
+                stamps:
+                  type: array
+                  items:
+                    type:
+                      - string
+                      - 'null'
+                    format: date-time
+                attachments:
+                  type: array
+                  items: {}
+                anything: {}
+                choiceLabels:
+                  type: array
+                  items:
+                    type: string
+            encoding:
+              jsonLabels:
+                contentType: application/json
+              vendorLabels:
+                contentType: application/vnd.example+json
+              choiceLabels:
+                contentType: application/json, application/vnd.example+json
+      responses:
+        '200':
+          description: Created course
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CourseCreate'
+components:
+  schemas:
+    CourseCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+    UploadMode:
+      type: string
+      enum:
+        - DRAFT
+        - FINAL
+    Page:
+      type: object
+      properties:
+        number:
+          type: integer
+          format: int32

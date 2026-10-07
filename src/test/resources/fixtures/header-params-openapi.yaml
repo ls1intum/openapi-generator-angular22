@@ -1,0 +1,123 @@
+openapi: 3.1.1
+info:
+  title: Header Params API
+  version: 1.0.0
+tags:
+  - name: repository
+paths:
+  /api/exercises/{exerciseId}/repository:
+    get:
+      tags:
+        - repository
+      operationId: getRepository
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Trace-Id
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: includeTests
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Repository files
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryFiles'
+    post:
+      tags:
+        - repository
+      operationId: submitRepositoryFeedback
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepositoryFeedback'
+      responses:
+        '200':
+          description: Accepted
+  /api/exercises/{exerciseId}/repository/token:
+    get:
+      tags:
+        - repository
+      operationId: getRepositoryToken
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plain-text token
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/exercises/{exerciseId}:
+    get:
+      tags:
+        - repository
+      operationId: getExercise
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Exercise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryFiles'
+components:
+  schemas:
+    RepositoryFiles:
+      type: object
+      properties:
+        files:
+          type: object
+          additionalProperties:
+            type: string
+    RepositoryFeedback:
+      type: object
+      properties:
+        text:
+          type: string

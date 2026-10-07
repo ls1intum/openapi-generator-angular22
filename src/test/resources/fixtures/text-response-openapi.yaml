@@ -1,0 +1,106 @@
+openapi: 3.1.1
+info:
+  title: Text Response API
+  version: 1.0.0
+tags:
+  - name: programming-exercise
+paths:
+  /api/programming-exercises/{exerciseId}/generate-tests:
+    put:
+      tags:
+        - programming-exercise
+      operationId: generateTests
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateTestsRequest'
+      responses:
+        '200':
+          description: Generated test code
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/programming-exercises/{exerciseId}/token:
+    post:
+      tags:
+        - programming-exercise
+      operationId: createToken
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Plain-text token
+          content:
+            text/plain:
+              schema:
+                type: string
+    delete:
+      tags:
+        - programming-exercise
+      operationId: revokeToken
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeTokenRequest'
+      responses:
+        '200':
+          description: Plain-text confirmation
+          content:
+            text/plain:
+              schema:
+                type: string
+  /api/programming-exercises/{exerciseId}/name:
+    post:
+      tags:
+        - programming-exercise
+      operationId: renameExercise
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The new name as a JSON string
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas:
+    GenerateTestsRequest:
+      type: object
+      properties:
+        language:
+          type: string
+    RevokeTokenRequest:
+      type: object
+      properties:
+        reason:
+          type: string

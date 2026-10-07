@@ -1,0 +1,39 @@
+openapi: 3.1.1
+info:
+  title: Reserved Parameter API
+  version: 1.0.0
+paths:
+  /api/packages/{default}/{package}:
+    get:
+      tags:
+        - package
+      operationId: getPackage
+      parameters:
+        - name: default
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: package
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: function
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: new
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: The package
+          content:
+            application/json:
+              schema:
+                type: string

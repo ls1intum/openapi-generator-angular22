@@ -26,3 +26,6 @@ replay_pid*
 /.gradle
 /.idea
 /build
+
+# Pinned compiler and Angular types for GeneratedCodeCompilesTest
+/src/test/typescript/node_modules

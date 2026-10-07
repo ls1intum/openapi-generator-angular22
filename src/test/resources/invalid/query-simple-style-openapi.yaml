@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: Invalid Query Style API
+  version: 1.0.0
+paths:
+  /api/items:
+    get:
+      tags:
+        - item
+      operationId: listItems
+      parameters:
+        - name: ids
+          in: query
+          style: simple
+          schema:
+            type: array
+            items:
+              type: integer
+      responses:
+        '200':
+          description: The items
+          content:
+            application/json:
+              schema:
+                type: string

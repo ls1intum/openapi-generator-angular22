@@ -1,0 +1,46 @@
+openapi: 3.1.1
+info:
+  title: Subtype API
+  version: 1.0.0
+tags:
+  - name: exercise
+paths:
+  /api/exercises/{exerciseId}:
+    get:
+      tags:
+        - exercise
+      operationId: getExercise
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The exercise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exercise'
+components:
+  schemas:
+    Exercise:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+        - type
+      properties:
+        type:
+          type: string
+    TextExercise:
+      allOf:
+        - $ref: '#/components/schemas/Exercise'
+        - type: object
+          properties:
+            type:
+              type: string
+            name:
+              type: string

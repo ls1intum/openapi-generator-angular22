@@ -1,0 +1,65 @@
+openapi: 3.1.1
+info:
+  title: Delete Body API
+  version: 1.0.0
+tags:
+  - name: user
+paths:
+  /api/users:
+    delete:
+      tags:
+        - user
+      operationId: deleteUsers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkUserDeletionRequest'
+      responses:
+        '200':
+          description: Deleted
+  /api/users/{login}:
+    delete:
+      tags:
+        - user
+      operationId: deleteUser
+      parameters:
+        - name: login
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermanentUserDeletionRequest'
+      responses:
+        '200':
+          description: Deletion summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeletionSummary'
+components:
+  schemas:
+    BulkUserDeletionRequest:
+      type: object
+      properties:
+        logins:
+          type: array
+          items:
+            type: string
+    PermanentUserDeletionRequest:
+      type: object
+      properties:
+        confirmation:
+          type: string
+    DeletionSummary:
+      type: object
+      properties:
+        deletedCount:
+          type: integer
+          format: int32

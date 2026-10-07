@@ -1,0 +1,26 @@
+openapi: 3.1.1
+info:
+  title: Short Tag API
+  version: 1.0.0
+tags:
+  - name: faq
+paths:
+  /api/faqs/{faqId}:
+    get:
+      tags:
+        - faq
+      operationId: getFaq
+      parameters:
+        - name: faqId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The FAQ
+          content:
+            application/json:
+              schema:
+                type: string

@@ -1,0 +1,11 @@
+{
+  "name": "angular22-generated-code-typecheck",
+  "private": true,
+  "description": "Pinned compiler and Angular types that GeneratedCodeCompilesTest type-checks the generated clients against.",
+  "devDependencies": {
+    "@angular/common": "22.1.7",
+    "@angular/core": "22.1.7",
+    "rxjs": "7.8.2",
+    "typescript": "6.0.3"
+  }
+}

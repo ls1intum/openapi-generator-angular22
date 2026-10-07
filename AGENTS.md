@@ -20,8 +20,8 @@
 - Mustache templates should stay minimal; prefer code in Java when logic is complex.
 
 ## Testing Guidelines
-- JUnit Jupiter is configured in Gradle. There are currently no test sources in `src/test/java`.
-- If you add tests, name classes `*Test.java` and keep them under `src/test/java`.
+- Tests live in `src/test/java` (`*Test.java`); each OpenAPI fixture they generate from lives in `src/test/resources/fixtures`. A spec that must fail generation lives in `src/test/resources/invalid`, since `GeneratedCodeCompilesTest` generates every fixture.
+- `GeneratedCodeCompilesTest` type-checks the generated code of every fixture with the TypeScript compiler and Angular types pinned in `src/test/typescript`. `./gradlew test` runs `npm ci` there first, so it needs Node.js and npm.
 - Run `./gradlew test` before submitting changes that affect code generation.
 
 ## Commit & Pull Request Guidelines

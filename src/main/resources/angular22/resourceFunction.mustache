@@ -1,0 +1,68 @@
+{{#hasQueryParams}}
+/**
+ * Query parameters for {{nickname}}
+ */
+export interface {{vendorExtensions.x-params-interface-name}} {
+{{#queryParams}}
+    {{vendorExtensions.x-query-key}}{{^required}}?{{/required}}: {{{dataType}}};
+{{/queryParams}}
+}
+
+{{/hasQueryParams}}
+/**
+ * {{summary}}
+ * {{notes}}
+ * Creates a reactive HTTP resource that automatically refetches when signals change.
+{{#pathParams}}
+ * @param {{paramName}} {{description}}
+{{/pathParams}}
+{{#headerParams}}
+ * @param {{paramName}} {{description}}
+{{/headerParams}}
+{{#hasQueryParams}}
+ * @param params Optional signal containing query parameters
+{{/hasQueryParams}}
+ */
+export function {{nickname}}Resource({{{vendorExtensions.x-resource-params}}}): HttpResourceRef<{{{vendorExtensions.x-resource-type}}} | undefined> {
+    return {{{vendorExtensions.x-resource-factory}}}(() => {
+{{#pathParams}}
+        const {{vendorExtensions.x-value-name}} = typeof {{paramName}} === 'function' ? {{paramName}}() : {{paramName}};
+        if ({{vendorExtensions.x-value-name}} === undefined) {
+            return undefined;
+        }
+{{^vendorExtensions.x-is-numeric}}
+        const {{vendorExtensions.x-path-name}} = encodeURIComponent(String({{vendorExtensions.x-value-name}}));
+{{/vendorExtensions.x-is-numeric}}
+{{/pathParams}}
+{{#hasHeaderParams}}
+{{! Without a prototype, every wire name becomes an own entry; on {} a header named __proto__ would hit the setter. }}
+        const headers: Record<string, string> = Object.create(null);
+{{#headerParams}}
+        const {{vendorExtensions.x-value-name}} = typeof {{paramName}} === 'function' ? {{paramName}}() : {{paramName}};
+{{#required}}
+        if ({{vendorExtensions.x-value-name}} === undefined) {
+            return undefined;
+        }
+{{/required}}
+        if ({{vendorExtensions.x-value-name}} !== undefined && {{vendorExtensions.x-value-name}} !== null) {
+            headers[{{{vendorExtensions.x-wire-name-literal}}}] = {{{vendorExtensions.x-resource-header-value}}};
+        }
+{{/headerParams}}
+{{/hasHeaderParams}}
+{{#hasQueryParams}}
+{{#vendorExtensions.x-all-query-params-optional}}
+        const queryParams = params?.() ?? {};
+{{/vendorExtensions.x-all-query-params-optional}}
+{{^vendorExtensions.x-all-query-params-optional}}
+        const queryParams = params();
+{{/vendorExtensions.x-all-query-params-optional}}
+        const searchParams = new URLSearchParams();
+{{#queryParams}}
+        appendQueryParam(searchParams, {{{vendorExtensions.x-wire-name-literal}}}, queryParams.{{vendorExtensions.x-query-key}}{{{vendorExtensions.x-query-style-args}}});
+{{/queryParams}}
+        const query = searchParams.toString();
+{{/hasQueryParams}}
+        return {{{vendorExtensions.x-resource-request}}};
+    });
+}
+

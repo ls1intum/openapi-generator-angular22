@@ -1,0 +1,40 @@
+openapi: 3.1.1
+info:
+  title: Query Key API
+  version: 1.0.0
+paths:
+  /api/pages:
+    get:
+      tags:
+        - page
+      operationId: getPages
+      parameters:
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+        - name: 2fa
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: new
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: The pages
+          content:
+            application/json:
+              schema:
+                type: string

@@ -1,0 +1,57 @@
+openapi: 3.1.1
+info:
+  title: Reserved Property API
+  version: 1.0.0
+tags:
+  - name: result
+paths:
+  /api/results:
+    get:
+      tags:
+        - result
+      operationId: getResults
+      parameters:
+        - name: final
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResultSummary'
+components:
+  schemas:
+    ResultSummary:
+      type: object
+      required:
+        - delete
+      properties:
+        final:
+          type: boolean
+        delete:
+          type: boolean
+        class:
+          type: string
+        x-y:
+          type: string
+        first_name:
+          type: string
+        score:
+          type: number
+    Escapes:
+      type: object
+      properties:
+        "it's":
+          type: string
+        "back\\slash":
+          type: string
+        "line\nbreak":
+          type: string
+        "tab\tand \"quote\"":
+          type: string

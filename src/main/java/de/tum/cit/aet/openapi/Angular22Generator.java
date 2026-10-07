@@ -18,8 +18,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Custom OpenAPI Generator for Angular 22+ with modern best practices.
@@ -28,22 +26,26 @@ import java.util.regex.Pattern;
  * a clean, signal-based Angular client. It generates three types of files per API tag:</p>
  *
  * <ol>
- *   <li><b>API Service</b> ({@code *-api.ts}) &mdash; Injectable service with mutation methods (POST, PUT, DELETE)
- *       using {@code HttpClient} and the {@code inject()} function.</li>
+ *   <li><b>API Service</b> ({@code *-api.ts}) &mdash; Injectable service with an {@code Observable} method for every
+ *       operation, using {@code HttpClient} and the {@code inject()} function.</li>
  *   <li><b>API Resource</b> ({@code *-resources.ts}) &mdash; Signal-based {@code httpResource} wrappers
  *       for GET operations, enabling reactive data fetching. Only generated for tags that have GET operations.</li>
  *   <li><b>Model</b> ({@code *.ts}) &mdash; TypeScript interfaces with readonly properties,
  *       plus const enum objects for runtime enum access (e.g., {@code JobDetailDTOStateEnum.Draft}).</li>
  * </ol>
  *
+ * <p>One {@code api/query-params.ts} per client holds {@code appendQueryParam}, which the API and resource files
+ * with query parameters import.</p>
+ *
  * <p><b>Generation Pipeline</b></p>
  * The generator hooks into four lifecycle stages of the OpenAPI Generator framework:
  * <ol>
  *   <li>{@link #processOpts()} &mdash; Reads CLI options and registers mustache templates.</li>
  *   <li>{@link #processOpenAPI(OpenAPI)} &mdash; Scans paths to determine which tags need resource files.</li>
- *   <li>{@link #postProcessAllModels(Map)} &mdash; Marks models as readonly or mutable.</li>
- *   <li>{@link #postProcessOperationsWithModels(OperationsMap, List)} &mdash; Splits operations,
- *       builds URL templates, and collects imports.</li>
+ *   <li>{@link #postProcessAllModels(Map)} &mdash; Marks models as readonly or mutable, and requires the properties
+ *       a subtype restates when its parent requires them.</li>
+ *   <li>{@link #postProcessOperationsWithModels(OperationsMap, List)} &mdash; Builds the HttpClient calls,
+ *       resource functions and URL templates, and collects imports.</li>
  * </ol>
  *
  * <p><b>Naming Conventions</b></p>
@@ -56,6 +58,11 @@ import java.util.regex.Pattern;
 public class Angular22Generator extends TypeScriptAngularClientCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Angular22Generator.class);
+
+
+    /** Identifiers that a generated service method or resource function declares or calls next to its parameters. */
+    private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "headers",
+            "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject");
 
     /** Generator name used by the OpenAPI Generator SPI and CLI. */
     public static final String GENERATOR_NAME = "angular22";
@@ -84,12 +91,13 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     /**
      * Initializes the Angular 22 generator with custom templates, naming conventions, and CLI options.
      *
-     * <p>Registers three template files:</p>
+     * <p>Registers the template files:</p>
      * <ul>
      *   <li>{@code model.mustache} &rarr; model TypeScript files</li>
      *   <li>{@code api-service.mustache} &rarr; API service files ({@code *-api.ts})</li>
      *   <li>{@code api-resource.mustache} &rarr; httpResource files ({@code *-resources.ts}),
      *       conditionally added in {@link #processOpts()}</li>
+     *   <li>{@code query-params.mustache} &rarr; {@code api/query-params.ts}, added in {@link #processOpts()}</li>
      * </ul>
      */
     public Angular22Generator() {
@@ -102,6 +110,11 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         modelTemplateFiles.put("model.mustache", ".ts");
 
         apiNameSuffix = "Api";
+        // The parent strips serviceSuffix off every API class name to derive a file name, and fails on names shorter
+        // than its default "Service" (e.g. FaqApi). Keep it equal to the suffix toApiName appends.
+        serviceSuffix = apiNameSuffix;
+        // JSON has no sets: a response arrives as an array, and JSON.stringify sends a Set as {}.
+        typeMapping.put("set", "Array");
         apiTemplateFiles.clear();
         apiTemplateFiles.put("api-service.mustache", "-api.ts");
 
@@ -160,6 +173,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         super.processOpts();
 
         supportingFiles.clear();
+        supportingFiles.add(new SupportingFile("query-params.mustache", "api", "query-params.ts"));
 
         if (additionalProperties.containsKey(USE_HTTP_RESOURCE)) {
             useHttpResource = Boolean.parseBoolean(additionalProperties.get(USE_HTTP_RESOURCE).toString());
@@ -195,9 +209,9 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     // =============================================================================================
 
     /**
-     * Scans all paths in the OpenAPI spec to classify each tag as having GET operations,
-     * mutation operations, or both. Tags without any GET operations get their resource file
-     * added to the generator's ignore list, since there is nothing to wrap in an httpResource.
+     * Scans all paths in the OpenAPI spec to find the tags that have GET operations. Tags without any GET
+     * operations get their resource file added to the generator's ignore list, since there is nothing to wrap
+     * in an httpResource.
      *
      * @param openAPI the parsed OpenAPI specification
      */
@@ -241,12 +255,12 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     }
 
     /**
-     * Records whether a single operation is a GET or a mutation for each of its tags.
+     * Records each tag of a single operation, and whether the operation is a GET.
      * Operations without tags are assigned to the "default" tag.
      *
      * @param operation  the OpenAPI operation to classify (may be {@code null})
      * @param isGet      {@code true} if this is a GET operation, {@code false} for mutations
-     * @param usageByTag the map accumulating GET/mutation flags per tag
+     * @param usageByTag the map accumulating the GET flag per tag
      */
     private void addOperationUsage(Operation operation, boolean isGet, Map<String, TagUsage> usageByTag) {
         if (operation == null) {
@@ -262,16 +276,13 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             TagUsage usage = usageByTag.computeIfAbsent(sanitizedTag, key -> new TagUsage());
             if (isGet) {
                 usage.hasGet = true;
-            } else {
-                usage.hasMutation = true;
             }
         }
     }
 
-    /** Tracks whether a given API tag has GET and/or mutation operations. */
+    /** Tracks whether a given API tag has GET operations. */
     private static final class TagUsage {
         private boolean hasGet;
-        private boolean hasMutation;
     }
 
     // =============================================================================================
@@ -287,8 +298,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      *
      * <p>The decision is passed to the mustache template via vendor extensions:</p>
      * <ul>
-     *   <li>{@code x-is-input-dto} on the model &mdash; whether this is a mutable input DTO</li>
      *   <li>{@code x-is-readonly} on each property &mdash; whether to emit the {@code readonly} keyword</li>
+     *   <li>{@code x-property-name} on each property &mdash; the property key, see {@link TypeScriptSnippets#toPropertyKey(String)}</li>
      * </ul>
      *
      * @param objs the map of all models, keyed by model name
@@ -301,17 +312,17 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         for (ModelsMap modelsMap : result.values()) {
             for (ModelMap modelMap : modelsMap.getModels()) {
                 CodegenModel model = modelMap.getModel();
+                requireWhatAncestorsRequire(model);
+                modelMap.put("tsImports", importsFromClassFiles(modelMap));
 
                 boolean isInputDto = model.name.endsWith("Create") ||
                         model.name.endsWith("Update") ||
                         model.name.endsWith("Request") ||
                         model.name.endsWith("Input");
 
-                model.vendorExtensions.put("x-is-input-dto", isInputDto);
-                model.vendorExtensions.put("x-use-readonly", readonlyModels && !isInputDto);
-
                 for (CodegenProperty property : model.vars) {
                     property.vendorExtensions.put("x-is-readonly", readonlyModels && !isInputDto);
+                    property.vendorExtensions.put("x-property-name", TypeScriptSnippets.toPropertyKey(property.baseName));
                 }
             }
         }
@@ -319,8 +330,35 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         return result;
     }
 
+    /**
+     * Makes a subtype's property required when an ancestor interface requires it.
+     *
+     * <p>A schema built as {@code allOf: [{$ref: Parent}, {properties: {...}}]} becomes an interface that
+     * {@code extends Parent}. When the inline part restates a required parent property without requiring it
+     * (typically the discriminator), the child would declare {@code type?: string} against the parent's
+     * {@code type: string}, which TypeScript rejects (TS2430). A required redeclaration is compatible, and a
+     * redeclaration that narrows the type keeps its narrower type.</p>
+     *
+     * @param model the model to adjust; models without a parent stay unchanged
+     */
+    private static void requireWhatAncestorsRequire(CodegenModel model) {
+        Set<String> required = new HashSet<>();
+        for (CodegenModel ancestor = model.parentModel; ancestor != null; ancestor = ancestor.parentModel) {
+            for (CodegenProperty property : ancestor.vars) {
+                if (property.required) {
+                    required.add(property.baseName);
+                }
+            }
+        }
+        for (CodegenProperty property : model.vars) {
+            if (required.contains(property.baseName)) {
+                property.required = true;
+            }
+        }
+    }
+
     // =============================================================================================
-    // 5) postProcessOperationsWithModels &mdash; Split ops, build URL templates, collect imports
+    // 5) postProcessOperationsWithModels &mdash; Build calls, resources and URL templates, collect imports
     // =============================================================================================
 
     /**
@@ -329,12 +367,11 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      *
      * <p>Processing steps:</p>
      * <ol>
-     *   <li>Save original OpenAPI paths before the parent class URL-encodes them</li>
-     *   <li>Split operations into GET (for httpResource) and mutation (for HttpClient) lists</li>
-     *   <li>Process path parameters &mdash; convert to camelCase, detect numeric types</li>
-     *   <li>Process query parameters &mdash; generate a TypeScript params interface name</li>
-     *   <li>Build TypeScript template literal URL paths from the original OpenAPI paths</li>
-     *   <li>Collect all referenced model imports and map them to kebab-case filenames</li>
+     *   <li>Per operation: annotate the path, query and form parameters, build the {@code HttpClient} call and the
+     *       URL template literal from the path as the spec writes it (the parent's {@code x-path-from-spec}), and for
+     *       a GET also the httpResource function</li>
+     *   <li>Per file: set the flags that decide which imports and helpers the file needs, and map the referenced
+     *       models to kebab-case file names</li>
      * </ol>
      *
      * @param objs      the operations map for the current API tag
@@ -343,220 +380,92 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      */
     @Override
     public OperationsMap postProcessOperationsWithModels(OperationsMap objs, List<ModelMap> allModels) {
-        // Step 1: Save original paths before super transforms them
-        OperationMap operationsBefore = objs.getOperations();
-        Map<String, String> originalPaths = new HashMap<>();
-        for (CodegenOperation op : operationsBefore.getOperation()) {
-            originalPaths.put(op.operationId, op.path);
-        }
-
         OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
-
-        // Each model must be imported from its own file. The default `imports` entries do not carry a
-        // per-entry filename, so `{{classFilename}}` in the api templates falls through to the
-        // enclosing API's filename and every model is (wrongly) imported from the same path. Compute
-        // the correct model filename per import here.
-        Object importsObj = result.get("imports");
-        if (importsObj instanceof List<?> importsList) {
-            for (Object item : importsList) {
-                if (item instanceof Map<?, ?> rawImport) {
-                    Object className = rawImport.get("classname");
-                    if (className == null) {
-                        className = rawImport.get("import");
-                    }
-                    if (className != null) {
-                        String simpleName = className.toString();
-                        simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1);
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> mutableImport = (Map<String, Object>) rawImport;
-                        mutableImport.put("classFilename", toModelFilename(simpleName));
-                    }
-                }
-            }
-        }
 
         OperationMap operations = result.getOperations();
         List<CodegenOperation> ops = operations.getOperation();
-
-        // Step 2: Split into GETs (httpResource) and mutations (HttpClient)
         List<CodegenOperation> getOperations = new ArrayList<>();
-        List<CodegenOperation> mutationOperations = new ArrayList<>();
 
         for (CodegenOperation op : ops) {
-            op.vendorExtensions.put("x-use-inject", useInjectFunction);
-
-            boolean isGet = "GET".equalsIgnoreCase(op.httpMethod);
-            if (isGet) {
-                op.vendorExtensions.put("x-is-get", true);
-                op.vendorExtensions.put("x-use-http-resource", useHttpResource && separateResources);
-                op.vendorExtensions.put("x-inline-resource", useHttpResource && !separateResources);
-                getOperations.add(op);
-            } else {
-                op.vendorExtensions.put("x-is-get", false);
-                op.vendorExtensions.put("x-is-mutation", true);
-                mutationOperations.add(op);
-            }
-
-            // Non-JSON GET responses need an explicit Angular HttpClient responseType. Without it the
-            // client defaults to responseType 'json' and tries to JSON.parse text/binary payloads
-            // (e.g. iCalendar files, CSV exports, plain-text tokens), which throws at runtime. A binary
-            // (Blob) return becomes responseType 'blob'; a string return whose produced media types are
-            // all text/* becomes responseType 'text'. JSON-string endpoints keep the default parser.
-            // File-download GETs (isResponseFile) are handled separately in the template with
-            // observe: 'response' so callers get the HttpResponse headers.
-            if (isGet) {
-                if ("Blob".equals(op.returnType)) {
-                    op.vendorExtensions.put("x-response-type", "blob");
-                } else if ("string".equals(op.returnType) && producesTextOnly(op)) {
-                    op.vendorExtensions.put("x-response-type", "text");
-                }
-            }
-
-            // Step 3 & 4: Process parameters
-            processPathParameters(op);
+            TypeScriptSnippets.ResponseKind response = TypeScriptSnippets.ResponseKind.of(op);
+            Map<String, TypeScriptSnippets.Locals> locals = TypeScriptSnippets.allocateLocals(op, TEMPLATE_LOCALS);
+            TypeScriptSnippets.processPathParameters(op, locals);
+            TypeScriptSnippets.processHeaderParameters(op, locals);
             processQueryParameters(op);
+            TypeScriptSnippets.processFormParameters(op);
+            TypeScriptSnippets.buildHttpCall(op, response);
 
-            // Step 5: Build TypeScript template literal URLs
-            String originalPath = originalPaths.getOrDefault(op.operationId, op.path);
-            String pathTemplate = buildPathTemplate(op, originalPath, false);
-            String resourcePathTemplate = buildPathTemplate(op, originalPath, true);
-            op.vendorExtensions.put("xPathTemplate", pathTemplate);
-            op.vendorExtensions.put("xResourcePathTemplate", resourcePathTemplate);
-            if (pathTemplate != null && !pathTemplate.isBlank()) {
-                op.path = pathTemplate;
+            String specPath = op.vendorExtensions.get("x-path-from-spec").toString();
+            op.vendorExtensions.put("xPathTemplate", TypeScriptSnippets.buildPathTemplate(op, specPath, false, locals));
+
+            if ("GET".equalsIgnoreCase(op.httpMethod)) {
+                op.vendorExtensions.put("x-is-get", true);
+                TypeScriptSnippets.buildResourceFunction(op, response, TypeScriptSnippets.buildPathTemplate(op, specPath, true, locals));
+                getOperations.add(op);
             }
         }
 
-        operations.put("getOperations", getOperations);
-        operations.put("mutationOperations", mutationOperations);
-        operations.put("hasGetOperations", !getOperations.isEmpty());
-        operations.put("hasMutationOperations", !mutationOperations.isEmpty());
         operations.put("hasInlineResources", useHttpResource && !separateResources && !getOperations.isEmpty());
-        operations.put("hasServiceClass", !mutationOperations.isEmpty() || !getOperations.isEmpty());
+        // The service class holds every operation, including the GETs of the inline resources in the same file;
+        // the separate resources file holds only the GETs.
+        operations.put("hasQueryParams", ops.stream().anyMatch(op -> !op.queryParams.isEmpty()));
+        operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));
+        operations.put("hasFileResponses", ops.stream()
+                .anyMatch(op -> TypeScriptSnippets.ResponseKind.of(op) == TypeScriptSnippets.ResponseKind.FILE));
+        operations.put("hasSignalArguments", getOperations.stream()
+                .anyMatch(op -> !op.pathParams.isEmpty() || !op.headerParams.isEmpty() || !op.queryParams.isEmpty()));
 
-        // Step 6: Collect model imports and map to kebab-case file paths
-        Set<String> modelImports = new LinkedHashSet<>();
-        for (CodegenOperation op : ops) {
-            modelImports.addAll(op.imports);
-        }
-        List<Map<String, String>> tsImports = new ArrayList<>();
-        for (String im : modelImports) {
-            Map<String, String> tsImport = new HashMap<>();
-            tsImport.put("classname", im);
-            tsImport.put("filename", toModelFilename(im));
-            tsImports.add(tsImport);
-        }
-        result.put("tsImports", tsImports);
+        result.put("tsImports", toTsImports(ops));
+        result.put("resourceTsImports", toTsImports(getOperations));
 
         return result;
     }
 
-    // =============================================================================================
-    // Parameter Processing Helpers
-    // =============================================================================================
-
-    /**
-     * Processes path parameters for a single operation: converts parameter names to camelCase
-     * for TypeScript and detects numeric parameters (which don't need URI encoding).
-     *
-     * <p>Sets vendor extensions on each parameter:</p>
-     * <ul>
-     *   <li>{@code x-ts-name} &mdash; the camelCase TypeScript variable name</li>
-     *   <li>{@code x-is-numeric} &mdash; whether the parameter is a number type</li>
-     * </ul>
-     *
-     * @param op the operation whose path parameters should be processed
-     */
-    private void processPathParameters(CodegenOperation op) {
-        if (op.pathParams != null) {
-            for (CodegenParameter param : op.pathParams) {
-                param.vendorExtensions.put("x-ts-name", toCamelCase(param.paramName));
-                param.vendorExtensions.put("x-is-numeric", isNumericParam(param));
-            }
+    private List<Map<String, String>> toTsImports(List<CodegenOperation> ops) {
+        Set<String> modelImports = new LinkedHashSet<>();
+        for (CodegenOperation op : ops) {
+            modelImports.addAll(op.imports);
         }
+        return modelImports.stream().map(Angular22Generator::tsImport).toList();
+    }
+
+    private static Map<String, String> tsImport(String className) {
+        return Map.of("classname", className, "filename", classFilename(className));
     }
 
     /**
      * Processes query parameters for a single operation: generates a TypeScript interface name
-     * for the grouped query params and converts individual parameter names to camelCase.
+     * for the grouped query params and the property name of each parameter in it.
      *
      * <p>Sets vendor extensions on the operation:</p>
      * <ul>
-     *   <li>{@code x-has-query-params} &mdash; whether the operation has any query parameters</li>
      *   <li>{@code x-params-interface-name} &mdash; PascalCase interface name (e.g., {@code GetJobsParams})</li>
+     *   <li>{@code x-all-query-params-optional} &mdash; whether the resource's {@code params} argument may be left out</li>
      * </ul>
+     *
+     * <p>Sets {@code x-query-key} on each query parameter: the property name in the params interface. It is the
+     * parent's identifier for the wire name without the {@code _} that escapes a reserved word, since a property may
+     * have that name, and without the {@code Param} suffix of {@link #toParamName}. A digit suffix keeps it unique
+     * within the operation, as the parent does for identifiers. {@code x-wire-name-literal} is the wire name as a
+     * TypeScript string literal, and {@code x-query-style-args} passes a style other than form with explode on to
+     * {@code appendQueryParam}.</p>
      *
      * @param op the operation whose query parameters should be processed
      */
     private void processQueryParameters(CodegenOperation op) {
-        if (op.queryParams != null && !op.queryParams.isEmpty()) {
-            op.vendorExtensions.put("x-has-query-params", true);
-
-            String paramsInterfaceName = toPascalCase(op.operationId) + "Params";
-            op.vendorExtensions.put("x-params-interface-name", paramsInterfaceName);
-
-            boolean allOptional = true;
-            for (CodegenParameter param : op.queryParams) {
-                param.vendorExtensions.put("x-ts-name", toCamelCase(param.paramName));
-                if (param.required) {
-                    allOptional = false;
-                }
-            }
-            op.vendorExtensions.put("x-all-query-params-optional", allOptional);
-        } else {
-            op.vendorExtensions.put("x-has-query-params", false);
+        if (op.queryParams.isEmpty()) {
+            return;
         }
-    }
-
-    // =============================================================================================
-    // URL Path Template Builder
-    // =============================================================================================
-
-    /**
-     * Builds a TypeScript template literal URL from the original OpenAPI path by replacing
-     * {@code {paramName}} placeholders with {@code ${variable}} expressions.
-     *
-     * <p>The variable naming depends on the context:</p>
-     * <ul>
-     *   <li><b>Service methods</b> ({@code useSignalValue=false}): string params use
-     *       {@code paramPath} (URI-encoded via {@code encodeURIComponent}), numeric params
-     *       use the raw variable name.</li>
-     *   <li><b>httpResource methods</b> ({@code useSignalValue=true}): string params use
-     *       {@code paramPath}, numeric params use {@code paramValue} (unwrapped from signals).</li>
-     * </ul>
-     *
-     * @param op             the operation being processed
-     * @param originalPath   the raw OpenAPI path before URL encoding (e.g., {@code /api/jobs/{id}/pdf})
-     * @param useSignalValue {@code true} for httpResource templates, {@code false} for HttpClient services
-     * @return the TypeScript template literal path (e.g., {@code /api/jobs/${idPath}/pdf}),
-     *         or {@code null} if {@code originalPath} is {@code null}
-     */
-    private String buildPathTemplate(CodegenOperation op, String originalPath, boolean useSignalValue) {
-        if (originalPath == null) {
-            return null;
+        op.vendorExtensions.put("x-params-interface-name", TypeScriptSnippets.paramsInterfaceName(op));
+        op.vendorExtensions.put("x-all-query-params-optional", TypeScriptSnippets.allQueryParamsOptional(op));
+        Set<String> keys = new HashSet<>();
+        for (CodegenParameter param : op.queryParams) {
+            String identifier = super.toParamName(param.baseName);
+            String key = identifier.startsWith("_") && isReservedWord(identifier.substring(1)) ? identifier.substring(1) : identifier;
+            param.vendorExtensions.put("x-query-key", TypeScriptSnippets.allocate(keys, key));
+            param.vendorExtensions.put("x-wire-name-literal", TypeScriptSnippets.stringLiteral(param.baseName));
+            param.vendorExtensions.put("x-query-style-args", TypeScriptSnippets.queryStyleArguments(op, param));
         }
-
-        String path = originalPath;
-
-        if (op.pathParams != null) {
-            for (CodegenParameter param : op.pathParams) {
-                Object tsName = param.vendorExtensions.get("x-ts-name");
-                String baseName = tsName != null ? tsName.toString() : param.paramName;
-                boolean isNumeric = Boolean.TRUE.equals(param.vendorExtensions.get("x-is-numeric"));
-
-                String valueVar;
-                if (useSignalValue) {
-                    valueVar = isNumeric ? baseName + "Value" : baseName + "Path";
-                } else {
-                    valueVar = isNumeric ? baseName : baseName + "Path";
-                }
-
-                String placeholder = "{" + param.baseName + "}";
-                path = path.replace(placeholder, "${" + valueVar + "}");
-            }
-        }
-
-        return path;
     }
 
     // =============================================================================================
@@ -564,14 +473,34 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     // =============================================================================================
 
     /**
-     * Converts a model class name to a kebab-case filename.
+     * Converts a schema name to the kebab-case filename of its model, derived from the class name.
      *
-     * @param name the PascalCase model name (e.g., {@code JobDetailDTO})
+     * <p>The generator calls this with the raw schema name when it writes a model file, e.g. the inline schema
+     * {@code getExam_200_response} of class {@code GetExam200Response}. An import holds the class name, to which
+     * {@link #toModelName(String)} would add the prefixes and suffixes again, so imports go through
+     * {@code classFilename} instead.</p>
+     *
+     * @param name the schema name (e.g., {@code JobDetailDTO})
      * @return the kebab-case filename without extension (e.g., {@code job-detail-dto})
      */
     @Override
     public String toModelFilename(String name) {
-        return toKebabCase(name);
+        return classFilename(toModelName(name));
+    }
+
+    /**
+     * Keeps the models that the parent's {@code postProcessAllModels} imports into a model file, but names each file
+     * after its class, as {@link #toModelFilename} and the API imports do. The parent names it
+     * {@code toModelFilename(removeModelPrefixSuffix(className))}, which applies {@code modelSuffix} twice when
+     * {@code modelNameSuffix} is set too, because the suffix it strips is no longer at the end of the name.
+     */
+    private static List<Map<String, String>> importsFromClassFiles(ModelMap modelMap) {
+        List<?> parentImports = (List<?>) modelMap.get("tsImports");
+        return parentImports.stream().map(entry -> tsImport((String) ((Map<?, ?>) entry).get("classname"))).toList();
+    }
+
+    private static String classFilename(String className) {
+        return Names.toKebabCase(className);
     }
 
     /**
@@ -582,7 +511,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      */
     @Override
     public String toApiFilename(String name) {
-        return toKebabCase(name);
+        return Names.toKebabCase(name);
     }
 
     /**
@@ -594,6 +523,22 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     @Override
     public String toApiName(String name) {
         return StringUtils.camelize(name) + "Api";
+    }
+
+    /**
+     * Returns the TypeScript identifier of a parameter. On top of the parent's escaping of reserved words, a name that
+     * the generated method bodies declare or call (e.g. a query parameter {@code url} next to {@code const url = ...})
+     * gets the suffix {@code Param}. The parent names every parameter here before it copies
+     * the parameter into the operation's lists, so every copy carries the same name; the wire name ({@code baseName})
+     * stays.
+     *
+     * @param name the parameter name in the OpenAPI document
+     * @return the identifier used for the parameter in the generated code
+     */
+    @Override
+    public String toParamName(String name) {
+        String identifier = super.toParamName(name);
+        return TEMPLATE_LOCALS.contains(identifier) ? identifier + "Param" : identifier;
     }
 
     /**
@@ -612,92 +557,6 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             normalized = "operation";
         }
         return normalized;
-    }
-
-    // =============================================================================================
-    // String Conversion Utilities
-    // =============================================================================================
-
-    /**
-     * Checks whether a parameter represents a numeric type (integer or number),
-     * which determines whether it needs URI encoding in the generated URL template.
-     *
-     * @param param the codegen parameter to check
-     * @return {@code true} if the parameter is numeric, {@code false} otherwise
-     */
-    private boolean isNumericParam(CodegenParameter param) {
-        if (Boolean.TRUE.equals(param.isInteger) || Boolean.TRUE.equals(param.isNumber)) {
-            return true;
-        }
-        return "number".equals(param.dataType) || "number".equals(param.baseType) || "integer".equals(param.baseType);
-    }
-
-    /**
-     * Whether the operation only produces text media types (e.g. text/plain, text/calendar, text/csv).
-     * Used to emit responseType: 'text' for string-returning GETs; JSON-string endpoints (which produce
-     * application/json) return false and keep the default JSON parser.
-     */
-    private boolean producesTextOnly(CodegenOperation op) {
-        if (op.produces == null || op.produces.isEmpty()) {
-            return false;
-        }
-        for (Map<String, String> mediaType : op.produces) {
-            String type = mediaType.get("mediaType");
-            if (type == null || !type.toLowerCase(Locale.ROOT).startsWith("text/")) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Converts a PascalCase or camelCase string to kebab-case.
-     *
-     * @param name the input string (e.g., {@code "JobDetailDTO"})
-     * @return the kebab-case result (e.g., {@code "job-detail-d-t-o"})
-     */
-    private String toKebabCase(String name) {
-        return name.replaceAll("([a-z])([A-Z])", "$1-$2")
-                .replaceAll("([A-Z]+)([A-Z][a-z])", "$1-$2")
-                .replaceAll("_", "-")
-                .toLowerCase();
-    }
-
-    /**
-     * Converts a snake_case or kebab-case string to camelCase.
-     *
-     * @param name the input string (e.g., {@code "job_id"} or {@code "job-id"})
-     * @return the camelCase result (e.g., {@code "jobId"}), or the input unchanged
-     *         if it is {@code null} or empty
-     */
-    private String toCamelCase(String name) {
-        if (name == null || name.isEmpty()) {
-            return name;
-        }
-        Pattern pattern = Pattern.compile("[-_]([a-zA-Z0-9])");
-        Matcher matcher = pattern.matcher(name);
-        StringBuilder buffer = new StringBuilder();
-        while (matcher.find()) {
-            matcher.appendReplacement(buffer, matcher.group(1).toUpperCase());
-        }
-        matcher.appendTail(buffer);
-        String result = buffer.toString();
-        return Character.toLowerCase(result.charAt(0)) + result.substring(1);
-    }
-
-    /**
-     * Converts a string to PascalCase by capitalizing the first letter of the camelCase result.
-     *
-     * @param name the input string (e.g., {@code "get_jobs"})
-     * @return the PascalCase result (e.g., {@code "GetJobs"}), or the input unchanged
-     *         if it is {@code null} or empty
-     */
-    private String toPascalCase(String name) {
-        String camel = toCamelCase(name);
-        if (camel == null || camel.isEmpty()) {
-            return camel;
-        }
-        return Character.toUpperCase(camel.charAt(0)) + camel.substring(1);
     }
 
     // =============================================================================================

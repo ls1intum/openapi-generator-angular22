@@ -74,12 +74,12 @@ export class CourseApi {
     }
 
     deleteCourse(courseId: number): Observable<void> {
-        const url = `${this.basePath}/courses/$${courseId}`;
-        return this.http.delete(url);
+        const url = `${this.basePath}/courses/${courseId}`;
+        return this.http.delete<void>(url);
     }
 
     updateCourse(courseId: number, courseUpdate: CourseUpdate): Observable<Course> {
-        const url = `${this.basePath}/courses/$${courseId}`;
+        const url = `${this.basePath}/courses/${courseId}`;
         return this.http.put<Course>(url, courseUpdate);
     }
 }
@@ -87,6 +87,8 @@ export class CourseApi {
 
 ### Resources (GET with httpResource)
 ```typescript
+import { appendQueryParam } from './query-params';
+
 const BASE_PATH = '/api';
 
 export interface GetAllCoursesParams {
@@ -99,26 +101,58 @@ export function getAllCoursesResource(params?: Signal<GetAllCoursesParams>): Htt
     return httpResource<Array<Course>>(() => {
         const queryParams = params?.() ?? {};
         const searchParams = new URLSearchParams();
-        if (queryParams.onlyActive !== undefined) {
-            searchParams.set('onlyActive', String(queryParams.onlyActive));
-        }
-        if (queryParams.page !== undefined && queryParams.page !== null) {
-            searchParams.set('page', String(queryParams.page));
-        }
-        if (queryParams.size !== undefined && queryParams.size !== null) {
-            searchParams.set('size', String(queryParams.size));
-        }
+        appendQueryParam(searchParams, 'onlyActive', queryParams.onlyActive);
+        appendQueryParam(searchParams, 'page', queryParams.page);
+        appendQueryParam(searchParams, 'size', queryParams.size);
         const query = searchParams.toString();
         return `${BASE_PATH}/courses${query ? `?${query}` : ''}`;
     });
 }
 
-export function getCourseResource(courseId: Signal<number> | number): HttpResourceRef<Course | undefined> {
+export function getCourseResource(courseId: Signal<number | undefined> | number): HttpResourceRef<Course | undefined> {
     return httpResource<Course>(() => {
         const courseIdValue = typeof courseId === 'function' ? courseId() : courseId;
+        if (courseIdValue === undefined) {
+            return undefined;
+        }
         return `${BASE_PATH}/courses/${courseIdValue}`;
     });
 }
+```
+
+### Query Parameters
+
+`api/query-params.ts` holds `appendQueryParam`, which every API and resources file with query parameters imports. It
+sends each parameter in its declared `style` and `explode`:
+
+- `form` with explode, the default, repeats the key of an array or set and sends an object as one key per property.
+  A nested object gets dotted keys (`range.min=1`), which is how Spring binds a query DTO, since OpenAPI defines no
+  format for it.
+- Without explode, `form`, `spaceDelimited` and `pipeDelimited` join an array, or an object's keys and values, with a
+  comma, a space or a pipe.
+- `deepObject` sends `filter[name]=x`. A nested object goes out as `filter[range][min]=1` and an array property as
+  repeated `filter[ids]` keys, conventions OpenAPI leaves open.
+- A parameter declared with JSON content, `application/json` or a `+json` type, goes out as JSON. Content of
+  another media type, such as `text/plain`, goes out in the default style.
+
+Outside JSON content, the helper leaves out `null` and `undefined` values and items, and empty arrays, sets and
+objects. Dates go out as ISO 8601. OpenAPI defines no query format for an object or array inside an array, or for a
+parameter that is an array under `deepObject`, so the helper throws, naming the property, when it gets one. A style
+that OpenAPI does not allow in a query, such as `simple`, fails generation.
+
+### Multipart Bodies
+
+Each multipart field follows its `encoding`. A field, or each item of an array or set except null ones, becomes one
+part. A binary goes out as it is. A string, number, boolean or enum value goes out as text, which is OpenAPI's
+default, and a `Date` as ISO 8601, or as a full date for `format: date`. An untyped value, such as an item of
+`items: {}`, goes out by what it holds at runtime, so files stay files. Objects and maps go out as one JSON part, and
+so does any field whose `encoding` names `application/json` or a `+json` media type. Spring reads a `@RequestPart List<String>` from one JSON part, so declare
+that encoding for it:
+
+```yaml
+encoding:
+  tags:
+    contentType: application/json
 ```
 
 ## Installation
@@ -234,6 +268,10 @@ java -cp openapi-generator-angular22-1.0.0.jar:openapi-generator-cli-7.18.0.jar 
 | `separateResources` | `true`  | Generate separate `*-resources.ts` files for GET operations |
 | `readonlyModels`    | `true`  | Add `readonly` modifier to response model properties        |
 
+An array with `uniqueItems: true` is typed `Array<T>`, not `Set<T>`. JSON has no sets: a response arrives as an
+array, and `JSON.stringify`, which Angular uses for request bodies, sends a `Set` as `{}`. A `typeMappings` entry
+`set: 'Set'` restores the old type.
+
 ## Usage in Components
 
 ```typescript
@@ -317,6 +355,9 @@ git clone https://github.com/ls1intum/openapi-generator-angular22.git
 cd openapi-generator-angular22
 ./gradlew build
 ```
+
+The tests type-check the generated code with the TypeScript compiler pinned in `src/test/typescript`, so the build
+needs Node.js and npm.
 
 ## Trying the Example Generator
 

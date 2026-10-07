@@ -1,0 +1,414 @@
+openapi: 3.1.1
+info:
+  title: Artemis Tutorial Groups API
+  version: 1.0.0
+servers:
+  - url: /api
+tags:
+  - name: tutorial-group
+    description: Tutorial group management
+  - name: tutorial-group-free-period
+    description: Tutorial group free period management
+paths:
+  /tutorialgroup/courses/{courseId}/tutorial-groups:
+    get:
+      tags:
+        - tutorial-group
+      operationId: getTutorialGroups
+      summary: Get tutorial groups for a course
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: registered
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: campus
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: Tutorial groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorialGroupDetailData'
+    post:
+      tags:
+        - tutorial-group
+      operationId: createTutorialGroup
+      summary: Create a tutorial group
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrUpdateTutorialGroupRequest'
+      responses:
+        '200':
+          description: Created tutorial group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorialGroupDetailData'
+  /tutorialgroup/courses/{courseId}/tutorial-groups/search:
+    get:
+      tags:
+        - tutorial-group
+      operationId: searchTutorialGroups
+      summary: Search tutorial groups by name
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching tutorial groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorialGroupDetailData'
+  /tutorialgroup/courses/{courseId}/tutorial-groups/export/csv:
+    get:
+      tags:
+        - tutorial-group
+      operationId: exportTutorialGroupsToCSV
+      summary: Export tutorial groups as CSV
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: fields
+          in: query
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+  /tutorialgroup/courses/{courseId}/tutorial-groups/{tutorialGroupId}/avatar:
+    get:
+      tags:
+        - tutorial-group
+      operationId: getTutorialGroupAvatar
+      summary: Get tutorial group avatar image
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: tutorialGroupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Avatar image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+  /tutorialgroup/courses/{courseId}/tutorial-groups/{tutorialGroupId}/calendar:
+    get:
+      tags:
+        - tutorial-group
+      operationId: getTutorialGroupCalendar
+      summary: Get tutorial group sessions as iCalendar
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: tutorialGroupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: iCalendar file
+          content:
+            text/calendar:
+              schema:
+                type: string
+  /tutorialgroup/courses/{courseId}/tutorial-groups/{tutorialGroupId}:
+    get:
+      tags:
+        - tutorial-group
+      operationId: getTutorialGroup
+      summary: Get one tutorial group
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: tutorialGroupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Tutorial group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorialGroupDetailData'
+    put:
+      tags:
+        - tutorial-group
+      operationId: updateTutorialGroup
+      summary: Update a tutorial group
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: tutorialGroupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrUpdateTutorialGroupRequest'
+      responses:
+        '200':
+          description: Updated tutorial group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorialGroupDetailData'
+    delete:
+      tags:
+        - tutorial-group
+      operationId: deleteTutorialGroup
+      summary: Delete a tutorial group
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: tutorialGroupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Deleted
+  /tutorialgroup/courses/{courseId}/tutorial-groups-configuration/{configurationId}/tutorial-free-periods/{freePeriodId}:
+    get:
+      tags:
+        - tutorial-group-free-period
+      operationId: getTutorialGroupFreePeriod
+      summary: Get one free period
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: configurationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: freePeriodId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Free period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorialGroupFreePeriod'
+    put:
+      tags:
+        - tutorial-group-free-period
+      operationId: updateTutorialGroupFreePeriod
+      summary: Update a free period
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: configurationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: freePeriodId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TutorialGroupFreePeriodRequest'
+      responses:
+        '200':
+          description: Updated free period
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorialGroupFreePeriod'
+components:
+  schemas:
+    CreateOrUpdateTutorialGroupRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        additionalInformation:
+          type: string
+        capacity:
+          type: integer
+          format: int32
+        language:
+          type: string
+    TutorialGroupDetailData:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        campus:
+          type: string
+        capacity:
+          type: integer
+          format: int32
+        numberOfRegisteredUsers:
+          type: integer
+          format: int32
+        isUserRegistered:
+          type: boolean
+    TutorialGroupConfiguration:
+      type: object
+      required:
+        - tutorialPeriodStartInclusive
+        - tutorialPeriodEndInclusive
+      properties:
+        id:
+          type: integer
+          format: int64
+        tutorialPeriodStartInclusive:
+          type: string
+          format: date
+        tutorialPeriodEndInclusive:
+          type: string
+          format: date
+        tutorialGroupFreePeriods:
+          type: array
+          items:
+            $ref: '#/components/schemas/TutorialGroupFreePeriod'
+    TutorialGroupFreePeriod:
+      type: object
+      required:
+        - id
+        - startDate
+        - endDate
+      properties:
+        id:
+          type: integer
+          format: int64
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    TutorialGroupFreePeriodRequest:
+      type: object
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        reason:
+          type: string

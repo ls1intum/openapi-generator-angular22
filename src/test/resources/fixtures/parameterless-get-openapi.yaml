@@ -1,0 +1,17 @@
+openapi: 3.1.1
+info:
+  title: Parameterless GET API
+  version: 1.0.0
+paths:
+  /api/public/health:
+    get:
+      tags:
+        - health
+      operationId: getHealth
+      responses:
+        '200':
+          description: Whether the server is up
+          content:
+            application/json:
+              schema:
+                type: string

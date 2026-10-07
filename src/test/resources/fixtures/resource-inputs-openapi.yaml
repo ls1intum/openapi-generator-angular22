@@ -1,0 +1,145 @@
+openapi: 3.1.1
+info:
+  title: Resource Inputs API
+  version: 1.0.0
+paths:
+  /api/reviews:
+    get:
+      tags:
+        - review
+      operationId: readReviews
+      parameters:
+        - name: token
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: tokenValue
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The reviews
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/reviews/{token}:
+    get:
+      tags:
+        - review
+      operationId: readReview
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tokenValue
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: tokenPath
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The review
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/quoted:
+    get:
+      tags:
+        - review
+      operationId: readQuoted
+      parameters:
+        - name: "X-It's"
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: "it's"
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: "back\\slash"
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The quoted names
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/header-shapes:
+    get:
+      tags:
+        - review
+      operationId: readHeaderShapes
+      parameters:
+        - name: X-Set
+          in: header
+          required: true
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              type: string
+        - name: X-Array
+          in: header
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+        - name: X-Object
+          in: header
+          required: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+        - name: X-Exploded
+          in: header
+          required: true
+          explode: true
+          schema:
+            type: object
+            additionalProperties:
+              type: string
+      responses:
+        '200':
+          description: The header shapes
+          content:
+            application/json:
+              schema:
+                type: string
+  /api/proto:
+    get:
+      tags:
+        - review
+      operationId: readProto
+      parameters:
+        - name: __proto__
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The header named __proto__
+          content:
+            application/json:
+              schema:
+                type: string

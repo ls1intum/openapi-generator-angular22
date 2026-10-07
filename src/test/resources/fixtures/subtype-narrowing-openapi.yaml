@@ -1,0 +1,60 @@
+openapi: 3.1.1
+info:
+  title: Subtype Narrowing API
+  version: 1.0.0
+paths:
+  /api/participations/{participationId}:
+    get:
+      tags:
+        - participation
+      operationId: getQuizParticipation
+      parameters:
+        - name: participationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The participation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizParticipation'
+components:
+  schemas:
+    Exercise:
+      type: object
+      properties:
+        title:
+          type: string
+    QuizExercise:
+      type: object
+      properties:
+        title:
+          type: string
+        duration:
+          type: integer
+    Participation:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+        - type
+      properties:
+        type:
+          type: string
+        exercise:
+          $ref: '#/components/schemas/Exercise'
+    QuizParticipation:
+      allOf:
+        - $ref: '#/components/schemas/Participation'
+        - type: object
+          required:
+            - exercise
+          properties:
+            exercise:
+              $ref: '#/components/schemas/QuizExercise'
+            submitted:
+              type: boolean

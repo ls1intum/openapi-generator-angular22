@@ -1,0 +1,100 @@
+openapi: 3.1.1
+info:
+  title: Local Name Collision API
+  version: 1.0.0
+tags:
+  - name: link
+paths:
+  /api/link-preview:
+    get:
+      tags:
+        - link
+      operationId: getLinkPreview
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Link preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkPreview'
+  /api/search/{query}/{params}:
+    get:
+      tags:
+        - link
+      operationId: search
+      parameters:
+        - name: query
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: params
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: headers
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: queryString
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: queryParams
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: searchParams
+          in: header
+          required: false
+          schema:
+            type: string
+        - name: appendQueryParam
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Matching links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LinkPreview'
+  /api/uploads:
+    post:
+      tags:
+        - link
+      operationId: upload
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                formData:
+                  type: string
+      responses:
+        '200':
+          description: Uploaded
+components:
+  schemas:
+    LinkPreview:
+      type: object
+      properties:
+        title:
+          type: string

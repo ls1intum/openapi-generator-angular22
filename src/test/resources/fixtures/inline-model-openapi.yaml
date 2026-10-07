@@ -1,0 +1,39 @@
+openapi: 3.1.1
+info:
+  title: Inline Model API
+  version: 1.0.0
+tags:
+  - name: exam
+paths:
+  /api/exams/{examId}:
+    get:
+      tags:
+        - exam
+      operationId: getExam
+      parameters:
+        - name: examId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The exam with its student count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  exam:
+                    $ref: '#/components/schemas/Exam'
+                  numberOfStudents:
+                    type: integer
+                    format: int32
+components:
+  schemas:
+    Exam:
+      type: object
+      properties:
+        title:
+          type: string
