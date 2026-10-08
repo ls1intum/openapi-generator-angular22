@@ -286,7 +286,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     }
 
     // =============================================================================================
-    // 4) postProcessAllModels &mdash; Mark models as readonly or mutable
+    // 4) postProcessAllModels &mdash; Mark models as readonly or mutable, detect oneOf unions
     // =============================================================================================
 
     /**
@@ -301,6 +301,10 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      *   <li>{@code x-is-readonly} on each property &mdash; whether to emit the {@code readonly} keyword</li>
      *   <li>{@code x-property-name} on each property &mdash; the property key, see {@link TypeScriptSnippets#toPropertyKey(String)}</li>
      * </ul>
+     *
+     * <p>A model with {@code oneOf} branches gets {@code x-is-one-of} and {@code x-one-of}: one
+     * {@code classname}/{@code filename} entry per branch. The template renders such a model as a union
+     * of its branches instead of one interface that merges the properties of every branch.</p>
      *
      * @param objs the map of all models, keyed by model name
      * @return the post-processed models map
@@ -323,6 +327,18 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
                 for (CodegenProperty property : model.vars) {
                     property.vendorExtensions.put("x-is-readonly", readonlyModels && !isInputDto);
                     property.vendorExtensions.put("x-property-name", TypeScriptSnippets.toPropertyKey(property.baseName));
+                }
+
+                List<Map<String, String>> oneOfBranches = new ArrayList<>();
+                if (model.getComposedSchemas() != null && model.getComposedSchemas().getOneOf() != null) {
+                    for (CodegenProperty branch : model.getComposedSchemas().getOneOf()) {
+                        String branchName = branch.complexType != null ? branch.complexType : branch.dataType;
+                        oneOfBranches.add(Map.of("classname", branchName, "filename", toModelFilename(branchName)));
+                    }
+                }
+                if (!oneOfBranches.isEmpty()) {
+                    model.vendorExtensions.put("x-is-one-of", true);
+                    model.vendorExtensions.put("x-one-of", oneOfBranches);
                 }
             }
         }

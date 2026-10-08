@@ -1,0 +1,71 @@
+openapi: 3.1.1
+info:
+  title: OneOf API
+  version: 1.0.0
+tags:
+  - name: question
+paths:
+  /api/questions:
+    post:
+      tags:
+        - question
+      operationId: createQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionCreate'
+      responses:
+        '200':
+          description: The created question
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionCreate'
+components:
+  schemas:
+    QuestionCreate:
+      oneOf:
+        - $ref: '#/components/schemas/MultipleChoiceQuestionCreate'
+        - $ref: '#/components/schemas/ShortAnswerQuestionCreate'
+      discriminator:
+        propertyName: type
+        mapping:
+          MULTIPLE_CHOICE: '#/components/schemas/MultipleChoiceQuestionCreate'
+          SHORT_ANSWER: '#/components/schemas/ShortAnswerQuestionCreate'
+    MultipleChoiceQuestionCreate:
+      type: object
+      required:
+        - type
+        - answerOptions
+      properties:
+        type:
+          type: string
+        answerOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnswerOptionCreate'
+    ShortAnswerQuestionCreate:
+      type: object
+      required:
+        - type
+        - spots
+      properties:
+        type:
+          type: string
+        spots:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortAnswerSpotCreate'
+    AnswerOptionCreate:
+      type: object
+      properties:
+        text:
+          type: string
+    ShortAnswerSpotCreate:
+      type: object
+      properties:
+        width:
+          type: integer
+          format: int32
