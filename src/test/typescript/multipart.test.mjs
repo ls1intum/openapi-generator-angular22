@@ -14,8 +14,8 @@ new Function('exports', 'require', compiled)(exports, (name) => angular[name]);
 
 const form = new exports.UploadApi().createUpload(
     { title: 'Algorithms' },
-    new Blob(['slides']),
-    [new Blob(['a']), null, new Blob(['b'])],
+    new File(['slides'], 'slides.pdf'),
+    [new File(['a'], 'a.png'), null, new File(['b'], 'b.png')],
     'n',
     3,
     0.5,
@@ -50,6 +50,11 @@ const json = (body) => [{ type: 'application/json', body }];
 assert.deepEqual(parts.course, json('{"title":"Algorithms"}'));
 assert.deepEqual(parts.file, [{ type: '', body: 'slides' }]);
 assert.deepEqual(parts.files, [{ type: '', body: 'a' }, { type: '', body: 'b' }], 'each binary of an array is its own part');
+assert.deepEqual(
+    [...form.getAll('file'), ...form.getAll('files')].map((part) => part.name),
+    ['slides.pdf', 'a.png', 'b.png'],
+    'a file part keeps the name of its file',
+);
 assert.deepEqual(parts.name, ['n']);
 assert.deepEqual(parts.count, ['3']);
 assert.deepEqual(parts.ratio, ['0.5']);

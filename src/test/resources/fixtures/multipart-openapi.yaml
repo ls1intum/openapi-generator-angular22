@@ -108,6 +108,13 @@ paths:
                   type: array
                   items:
                     type: string
+                nullableFiles:
+                  type: array
+                  items:
+                    type:
+                      - string
+                      - 'null'
+                    format: binary
             encoding:
               jsonLabels:
                 contentType: application/json

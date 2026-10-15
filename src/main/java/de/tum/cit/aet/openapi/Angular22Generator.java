@@ -542,6 +542,25 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     }
 
     /**
+     * Types a multipart file part as {@code File} instead of the parent's {@code Blob}, so callers must pass a named
+     * file: a plain {@code Blob} is sent with the file name {@code blob}, and a server that resolves uploads by their
+     * original file name cannot tell such parts apart. Only {@code Blob} in the type changes, so an array or a nullable
+     * item keeps its wrapper ({@code Array<File | null>}). A binary request body and a download keep {@code Blob}.
+     *
+     * <p>The parent calls this once per parameter, before it copies the parameter into the operation's lists, so every
+     * copy carries the type.</p>
+     *
+     * @param parameter the parameter as the parent built it
+     */
+    @Override
+    public void postProcessParameter(CodegenParameter parameter) {
+        super.postProcessParameter(parameter);
+        if (parameter.isFormParam && parameter.isFile) {
+            parameter.dataType = parameter.dataType.replace("Blob", "File");
+        }
+    }
+
+    /**
      * Cleans up operation IDs by stripping leading underscores and trailing digits
      * that the OpenAPI spec sometimes adds to disambiguate overloaded endpoints.
      *

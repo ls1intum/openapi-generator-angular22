@@ -89,6 +89,10 @@ class Angular22GeneratorTest {
                 """);
         assertContains(api, "formData.append('pages', new Blob([JSON.stringify(Array.from(pages))], { type: 'application/json' }));");
         assertContains(api, "formData.append('labels', new Blob([JSON.stringify(labels)], { type: 'application/json' }));");
+        // File parts are typed File: FormData sends a File with its name, and a plain Blob as "blob".
+        assertContains(api, "createUpload(course: CourseCreate, file?: File, files?: Array<File>, name?: string,");
+        // Only Blob becomes File, so a nullable item keeps its null.
+        assertContains(api, "nullableFiles?: Array<File | null>");
         // Binary fields are appended as they are.
         assertContains(api, "formData.append('file', file);");
         assertContains(api, "files.forEach(item => { if (item !== undefined && item !== null) { formData.append('files', item); } });");
