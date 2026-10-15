@@ -44,15 +44,10 @@ final class TypeScriptSnippets {
         JSON,
         /** A string return whose produced media types are all {@code text/*}. */
         TEXT,
-        /** A binary ({@code Blob}) return. */
-        BLOB,
-        /** A file download; the service method returns the {@code HttpResponse} so callers get its headers. */
-        FILE;
+        /** A binary ({@code Blob}) return, including a file download. */
+        BLOB;
 
         static ResponseKind of(CodegenOperation op) {
-            if (op.isResponseFile) {
-                return FILE;
-            }
             if ("Blob".equals(op.returnType)) {
                 return BLOB;
             }
@@ -189,13 +184,27 @@ final class TypeScriptSnippets {
     }
 
     /**
+     * Whether a service method returns the full {@code HttpResponse<T>} instead of the body, so the caller can read the
+     * response headers: always for a file download, and with {@code observeResponseHeaders} when a success response
+     * declares headers. Headers of an error response don't count: {@code HttpErrorResponse} already exposes them.
+     *
+     * @param op                     the operation
+     * @param observeResponseHeaders the value of the generator option
+     * @return {@code true} if the service method observes the full response
+     */
+    static boolean observesResponse(CodegenOperation op, boolean observeResponseHeaders) {
+        return op.isResponseFile
+                || observeResponseHeaders && op.responses.stream().anyMatch(response -> response.is2xx && !response.headers.isEmpty());
+    }
+
+    /**
      * Builds the {@code HttpClient} call of a service method once, so the template prints a single
      * {@code return this.http.<method><typeArg>(<args>);} line.
      *
      * <p>Sets vendor extensions on the operation:</p>
      * <ul>
      *   <li>{@code x-observable-type} &mdash; what the service method's {@code Observable} emits: the return type, or
-     *       the {@code HttpResponse<Blob>} of a file download</li>
+     *       {@code HttpResponse<T>} of it when the call observes the full response</li>
      *   <li>{@code x-http-type-arg} &mdash; the {@code <T>} type argument, empty when a {@code responseType}
      *       option selects a non-JSON overload that already fixes the result type</li>
      *   <li>{@code x-http-args} &mdash; the argument list: {@code url}, the payload for methods that take one,
@@ -203,10 +212,11 @@ final class TypeScriptSnippets {
      *       {@code headers}, {@code responseType} and {@code observe}</li>
      * </ul>
      *
-     * @param op       the operation whose HttpClient call should be built
-     * @param response how the response body is read
+     * @param op              the operation whose HttpClient call should be built
+     * @param response        how the response body is read
+     * @param observeResponse whether the call observes the full response, see {@link #observesResponse}
      */
-    static void buildHttpCall(CodegenOperation op, ResponseKind response) {
+    static void buildHttpCall(CodegenOperation op, ResponseKind response, boolean observeResponse) {
         String payload = null;
         if (op.getHasFormParams()) {
             payload = "formData";
@@ -234,14 +244,16 @@ final class TypeScriptSnippets {
             case JSON -> List.of();
             case TEXT -> List.of("responseType: 'text'");
             case BLOB -> List.of("responseType: 'blob'");
-            case FILE -> List.of("responseType: 'blob'", "observe: 'response'");
         });
+        if (observeResponse) {
+            options.add("observe: 'response'");
+        }
         if (!options.isEmpty()) {
             args.add("{ " + String.join(", ", options) + " }");
         }
 
         String returnType = op.returnType != null ? op.returnType : "void";
-        op.vendorExtensions.put("x-observable-type", response == ResponseKind.FILE ? "HttpResponse<Blob>" : returnType);
+        op.vendorExtensions.put("x-observable-type", observeResponse ? "HttpResponse<" + returnType + ">" : returnType);
         op.vendorExtensions.put("x-http-type-arg", response == ResponseKind.JSON ? "<" + returnType + ">" : "");
         op.vendorExtensions.put("x-http-args", String.join(", ", args));
     }
@@ -298,7 +310,7 @@ final class TypeScriptSnippets {
         op.vendorExtensions.put("x-resource-factory", switch (response) {
             case JSON -> "httpResource<" + resourceType + ">";
             case TEXT -> "httpResource.text";
-            case BLOB, FILE -> "httpResource.blob";
+            case BLOB -> "httpResource.blob";
         });
 
         String url = "`${BASE_PATH}" + resourcePathTemplate + (hasQueryParams ? "${query ? `?${query}` : ''}" : "") + "`";

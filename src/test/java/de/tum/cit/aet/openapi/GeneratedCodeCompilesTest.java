@@ -25,7 +25,8 @@ class GeneratedCodeCompilesTest {
                     .addAdditionalProperty("separateResources", "false"),
             "model-affixes", configurator -> configurator.addAdditionalProperty("modelNamePrefix", "Api")
                     .addAdditionalProperty("modelNameSuffix", "Model").addAdditionalProperty("modelSuffix", "Dto"),
-            "date-objects", configurator -> configurator.addTypeMapping("DateTime", "Date").addTypeMapping("date", "Date"));
+            "date-objects", configurator -> configurator.addTypeMapping("DateTime", "Date").addTypeMapping("date", "Date"),
+            "response-headers", configurator -> configurator.addAdditionalProperty("observeResponseHeaders", "true"));
 
     @TempDir
     Path tempDir;

@@ -133,6 +133,50 @@ class Angular22GeneratorTest {
     }
 
     @Test
+    void returnsTheFullResponseWhenASuccessResponseDeclaresHeaders() throws IOException {
+        generateFixture("fixtures/response-headers-openapi.yaml", Map.of("observeResponseHeaders", "true"));
+
+        String api = Files.readString(tempDir.resolve("api/question-api.ts"));
+        assertContains(api, """
+                    getQuestions(page?: number): Observable<HttpResponse<Array<Question>>> {
+                """);
+        assertContains(api, "return this.http.get<Array<Question>>(url, { observe: 'response' });");
+        // A text body keeps its responseType next to observe, or HttpClient parses it as JSON.
+        assertContains(api, """
+                    exportQuestions(): Observable<HttpResponse<string>> {
+                        const url = `${this.basePath}/api/questions/export`;
+                        return this.http.get(url, { responseType: 'text', observe: 'response' });
+                """);
+        // A 201 with a Location header and no body.
+        assertContains(api, """
+                    createQuestion(question: Question): Observable<HttpResponse<void>> {
+                        const url = `${this.basePath}/api/questions`;
+                        return this.http.post<void>(url, question, { observe: 'response' });
+                """);
+        assertContains(api, "return this.http.delete<number>(url, { body: requestBody, observe: 'response' });");
+        // A file download observes the response anyway; observe appears once.
+        assertContains(api, "return this.http.get(url, { responseType: 'blob', observe: 'response' });");
+        // A header on an error response only: HttpErrorResponse already exposes it, so the body stays the result.
+        assertContains(api, """
+                    getQuestion(questionId: number): Observable<Question> {
+                        const url = `${this.basePath}/api/questions/${questionId}`;
+                        return this.http.get<Question>(url);
+                """);
+    }
+
+    @Test
+    void returnsTheBodyOfOperationsWithResponseHeadersByDefault() throws IOException {
+        generateFixture("fixtures/response-headers-openapi.yaml", Map.of());
+
+        String api = Files.readString(tempDir.resolve("api/question-api.ts"));
+        assertContains(api, """
+                    getQuestions(page?: number): Observable<Array<Question>> {
+                """);
+        assertContains(api, "return this.http.get<Array<Question>>(url);");
+        assertContains(api, "return this.http.post<void>(url, question);");
+    }
+
+    @Test
     void sendsDeclaredHeaderParameters() throws IOException {
         generateFixture("fixtures/header-params-openapi.yaml", Map.of());
 

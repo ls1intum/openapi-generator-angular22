@@ -265,12 +265,25 @@ java -cp openapi-generator-angular22-1.0.0.jar:openapi-generator-cli-7.18.0.jar 
 
 ## Configuration Options
 
-| Option              | Default | Description                                                 |
-|---------------------|---------|-------------------------------------------------------------|
-| `useHttpResource`   | `true`  | Use `httpResource` for GET requests instead of `HttpClient` |
-| `useInjectFunction` | `true`  | Use `inject()` function instead of constructor injection    |
-| `separateResources` | `true`  | Generate separate `*-resources.ts` files for GET operations |
-| `readonlyModels`    | `true`  | Add `readonly` modifier to response model properties        |
+| Option                   | Default | Description                                                                       |
+|--------------------------|---------|-----------------------------------------------------------------------------------|
+| `useHttpResource`        | `true`  | Use `httpResource` for GET requests instead of `HttpClient`                       |
+| `useInjectFunction`      | `true`  | Use `inject()` function instead of constructor injection                          |
+| `separateResources`      | `true`  | Generate separate `*-resources.ts` files for GET operations                       |
+| `readonlyModels`         | `true`  | Add `readonly` modifier to response model properties                              |
+| `observeResponseHeaders` | `false` | Return `HttpResponse<T>` from service methods whose 2xx responses declare headers |
+
+A service method returns `Observable<T>` with the response body. It returns `Observable<HttpResponse<T>>`, with the
+body in `body` and the response headers in `headers`, in two cases:
+
+- The operation downloads a file: a 2xx response has a `format: binary` schema, whatever its media type. This does not
+  depend on an option.
+- `observeResponseHeaders` is on and a 2xx response of the operation declares `headers`, such as a pagination flag or
+  the `Location` of a `201`. A header declared only on an error response does not count, since
+  `HttpErrorResponse` already exposes it. The option is off by default, because it changes the return type of every
+  such method.
+
+An httpResource function is unaffected; its `HttpResourceRef` exposes the headers of every response as `headers()`.
 
 An array with `uniqueItems: true` is typed `Array<T>`, not `Set<T>`. JSON has no sets: a response arrives as an
 array, and `JSON.stringify`, which Angular uses for request bodies, sends a `Set` as `{}`. A `typeMappings` entry

@@ -74,6 +74,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     public static final String SEPARATE_RESOURCES = "separateResources";
     /** Config option for adding readonly modifiers to response models. */
     public static final String READONLY_MODELS = "readonlyModels";
+    /** Config option for returning the full response of operations whose success responses declare headers. */
+    public static final String OBSERVE_RESPONSE_HEADERS = "observeResponseHeaders";
 
     /** Whether to generate httpResource-based GET resources. */
     protected boolean useHttpResource = true;
@@ -83,6 +85,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     protected boolean separateResources = true;
     /** Whether to add readonly modifiers to response models. */
     protected boolean readonlyModels = true;
+    /** Whether a service method returns {@code HttpResponse<T>} when a success response of its operation declares headers. */
+    protected boolean observeResponseHeaders = false;
 
     // =============================================================================================
     // 1) Constructor &mdash; Register templates, set naming conventions, define CLI options
@@ -132,6 +136,9 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         cliOptions.add(new CliOption(READONLY_MODELS,
                 "Add readonly modifier to model properties")
                 .defaultValue("true"));
+        cliOptions.add(new CliOption(OBSERVE_RESPONSE_HEADERS,
+                "Return HttpResponse<T> from service methods whose 2xx responses declare headers")
+                .defaultValue("false"));
     }
 
     /**
@@ -163,10 +170,10 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      * Reads user-provided CLI options from {@code --additional-properties} and configures
      * the generator accordingly.
      *
-     * <p>Each boolean option (useHttpResource, useInjectFunction, separateResources, readonlyModels)
-     * defaults to {@code true} if not explicitly provided. When both {@code useHttpResource} and
-     * {@code separateResources} are enabled, the {@code api-resource.mustache} template is registered
-     * to generate signal-based httpResource wrapper files.</p>
+     * <p>Each boolean option (useHttpResource, useInjectFunction, separateResources, readonlyModels) defaults to
+     * {@code true} if not explicitly provided, observeResponseHeaders to {@code false}. When both
+     * {@code useHttpResource} and {@code separateResources} are enabled, the {@code api-resource.mustache} template is
+     * registered to generate signal-based httpResource wrapper files.</p>
      */
     @Override
     public void processOpts() {
@@ -195,13 +202,18 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         }
         additionalProperties.put(READONLY_MODELS, readonlyModels);
 
+        if (additionalProperties.containsKey(OBSERVE_RESPONSE_HEADERS)) {
+            observeResponseHeaders = Boolean.parseBoolean(additionalProperties.get(OBSERVE_RESPONSE_HEADERS).toString());
+        }
+        additionalProperties.put(OBSERVE_RESPONSE_HEADERS, observeResponseHeaders);
+
         if (useHttpResource && separateResources) {
             apiTemplateFiles.put("api-resource.mustache", "-resources.ts");
         }
 
         LOGGER.info("Angular22 Generator initialized with: useHttpResource={}, useInjectFunction={}, " +
-                "separateResources={}, readonlyModels={}",
-                useHttpResource, useInjectFunction, separateResources, readonlyModels);
+                "separateResources={}, readonlyModels={}, observeResponseHeaders={}",
+                useHttpResource, useInjectFunction, separateResources, readonlyModels, observeResponseHeaders);
     }
 
     // =============================================================================================
@@ -393,7 +405,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             TypeScriptSnippets.processHeaderParameters(op, locals);
             processQueryParameters(op);
             TypeScriptSnippets.processFormParameters(op);
-            TypeScriptSnippets.buildHttpCall(op, response);
+            TypeScriptSnippets.buildHttpCall(op, response, TypeScriptSnippets.observesResponse(op, observeResponseHeaders));
 
             String specPath = op.vendorExtensions.get("x-path-from-spec").toString();
             op.vendorExtensions.put("xPathTemplate", TypeScriptSnippets.buildPathTemplate(op, specPath, false, locals));
@@ -410,8 +422,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         // the separate resources file holds only the GETs.
         operations.put("hasQueryParams", ops.stream().anyMatch(op -> !op.queryParams.isEmpty()));
         operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));
-        operations.put("hasFileResponses", ops.stream()
-                .anyMatch(op -> TypeScriptSnippets.ResponseKind.of(op) == TypeScriptSnippets.ResponseKind.FILE));
+        operations.put("usesHttpResponse", ops.stream().anyMatch(op -> TypeScriptSnippets.observesResponse(op, observeResponseHeaders)));
         operations.put("hasSignalArguments", getOperations.stream()
                 .anyMatch(op -> !op.pathParams.isEmpty() || !op.headerParams.isEmpty() || !op.queryParams.isEmpty()));
 

@@ -3,7 +3,7 @@
  * {{classname}} - API service
  * @generated from OpenAPI specification
  */
-import { HttpClient{{#operations.hasFileResponses}}, HttpResponse{{/operations.hasFileResponses}} } from '@angular/common/http';
+import { HttpClient{{#operations.usesHttpResponse}}, HttpResponse{{/operations.usesHttpResponse}} } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 {{#operations.hasInlineResources}}
