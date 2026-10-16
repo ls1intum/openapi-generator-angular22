@@ -206,7 +206,7 @@ plugins {
 
 dependencies {
     // Add as a dependency to the openapi generator
-    openapiGenerator("de.tum.cit.aet:openapi-generator-angular22:1.0.0")
+    openapiGenerator("de.tum.cit.aet:openapi-generator-angular22:3.0.0")
 }
 
 openApiGenerate {
@@ -232,7 +232,7 @@ plugins {
 
 dependencies {
     // Add as a dependency to the openapi generator
-    openapiGenerator 'de.tum.cit.aet:openapi-generator-angular22:1.0.0'
+    openapiGenerator 'de.tum.cit.aet:openapi-generator-angular22:3.0.0'
 }
 
 openApiGenerate {
@@ -277,7 +277,7 @@ openApiGenerate {
         <dependency>
             <groupId>de.tum.cit.aet</groupId>
             <artifactId>openapi-generator-angular22</artifactId>
-            <version>1.0.0</version>
+            <version>3.0.0</version>
         </dependency>
     </dependencies>
 </plugin>
