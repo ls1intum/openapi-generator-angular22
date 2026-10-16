@@ -343,6 +343,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Submission'
 
+  /exercises/{exerciseId}/quiz-questions:
+    post:
+      tags:
+        - exercise
+      operationId: createQuizQuestion
+      summary: Add a question to a quiz exercise
+      parameters:
+        - name: exerciseId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuizQuestionCreate'
+      responses:
+        '201':
+          description: Question created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuizQuestionCreate'
+
   /users:
     get:
       tags:
@@ -918,3 +945,50 @@ components:
           type: integer
         number:
           type: integer
+
+    # A oneOf becomes a union of its branches. Each branch declares the discriminator as a single-value enum, so a
+    # switch on `type` narrows the union to the branch.
+    QuizQuestionCreate:
+      oneOf:
+        - $ref: '#/components/schemas/MultipleChoiceQuestionCreate'
+        - $ref: '#/components/schemas/ShortAnswerQuestionCreate'
+      discriminator:
+        propertyName: type
+        mapping:
+          multiple-choice: '#/components/schemas/MultipleChoiceQuestionCreate'
+          short-answer: '#/components/schemas/ShortAnswerQuestionCreate'
+
+    MultipleChoiceQuestionCreate:
+      type: object
+      required:
+        - type
+        - title
+        - answerOptions
+      properties:
+        type:
+          type: string
+          enum:
+            - multiple-choice
+        title:
+          type: string
+        answerOptions:
+          type: array
+          items:
+            type: string
+
+    ShortAnswerQuestionCreate:
+      type: object
+      required:
+        - type
+        - title
+      properties:
+        type:
+          type: string
+          enum:
+            - short-answer
+        title:
+          type: string
+        solutions:
+          type: array
+          items:
+            type: string

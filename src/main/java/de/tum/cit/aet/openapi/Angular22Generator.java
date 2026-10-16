@@ -6,18 +6,21 @@ package de.tum.cit.aet.openapi;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.media.Schema;
 import org.openapitools.codegen.*;
 import org.openapitools.codegen.languages.TypeScriptAngularClientCodegen;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationMap;
 import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Custom OpenAPI Generator for Angular 22+ with modern best practices.
@@ -298,7 +301,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     }
 
     // =============================================================================================
-    // 4) postProcessAllModels &mdash; Mark models as readonly or mutable
+    // 4) postProcessAllModels &mdash; Mark models as readonly or mutable, render oneOf models as unions
     // =============================================================================================
 
     /**
@@ -314,6 +317,9 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      *   <li>{@code x-property-name} on each property &mdash; the property key, see {@link TypeScriptSnippets#toPropertyKey(String)}</li>
      * </ul>
      *
+     * <p>A model with {@code oneOf} branches becomes a union type, see {@link #renderAsUnion}, and a subtype of such a
+     * model stops extending it, see {@link #inlineUnionParent}.</p>
+     *
      * @param objs the map of all models, keyed by model name
      * @return the post-processed models map
      */
@@ -325,21 +331,192 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             for (ModelMap modelMap : modelsMap.getModels()) {
                 CodegenModel model = modelMap.getModel();
                 requireWhatAncestorsRequire(model);
-                modelMap.put("tsImports", importsFromClassFiles(modelMap));
-
-                boolean isInputDto = model.name.endsWith("Create") ||
-                        model.name.endsWith("Update") ||
-                        model.name.endsWith("Request") ||
-                        model.name.endsWith("Input");
-
-                for (CodegenProperty property : model.vars) {
-                    property.vendorExtensions.put("x-is-readonly", readonlyModels && !isInputDto);
-                    property.vendorExtensions.put("x-property-name", TypeScriptSnippets.toPropertyKey(property.baseName));
+                if (isUnion(model)) {
+                    modelMap.put("tsImports", renderAsUnion(model));
+                } else if (model.parentModel != null && isUnion(model.parentModel)) {
+                    modelMap.put("tsImports", inlineUnionParent(model));
+                } else {
+                    modelMap.put("tsImports", importsFromClassFiles(modelMap));
                 }
+
+                prepareProperties(model, model.vars);
             }
         }
 
         return result;
+    }
+
+    /**
+     * Sets what {@code modelProperty.mustache} reads: {@code x-is-readonly}, true unless the model is an input DTO, and
+     * {@code x-property-name}.
+     */
+    private void prepareProperties(CodegenModel model, List<CodegenProperty> properties) {
+        boolean isInputDto = model.name.endsWith("Create") ||
+                model.name.endsWith("Update") ||
+                model.name.endsWith("Request") ||
+                model.name.endsWith("Input");
+        for (CodegenProperty property : properties) {
+            property.vendorExtensions.put("x-is-readonly", readonlyModels && !isInputDto);
+            property.vendorExtensions.put("x-property-name", TypeScriptSnippets.toPropertyKey(property.baseName));
+        }
+    }
+
+    private static boolean isUnion(CodegenModel model) {
+        CodegenComposedSchemas composed = model.getComposedSchemas();
+        return composed != null && composed.getOneOf() != null && !composed.getOneOf().isEmpty();
+    }
+
+    /**
+     * Renders a {@code oneOf} model as the union of its branches: {@code x-is-one-of} and {@code x-one-of-type}, e.g.
+     * {@code A | string | Array<B> | null}. The parent renders such a model as one interface that merges the
+     * properties of every branch: it does not narrow, and it rejects valid values where branches require different
+     * fields.
+     *
+     * <p>A union member is the branch's type, so a primitive or array branch keeps its TypeScript type, and an inline
+     * enum branch contributes its values ({@code 'LIGHT' | 'DARK'}) rather than its base type, which would absorb the
+     * other members. When the parent's normalizer replaces a {@code {type: 'null'}} branch with
+     * {@code nullable: true}, the union gets a {@code null} member back.</p>
+     *
+     * <p>Properties declared on the {@code oneOf} root apply to every object branch. When an object branch does not
+     * declare one, or does not require one the root requires, the object branches are intersected with the root's
+     * properties, {@code (A | B) & { type: string; }}, see {@link #rootPropertiesTheBranchesLose}. The properties go
+     * to {@code x-one-of-root-vars}, the intersected branches to {@code x-one-of-objects} and the other members, with
+     * a leading {@code " | "}, to {@code x-one-of-others}.</p>
+     *
+     * @param model the {@code oneOf} model
+     * @return the imports of the model file: the models that the branches and the intersected root properties refer
+     *         to, at any depth
+     */
+    private List<Map<String, String>> renderAsUnion(CodegenModel model) {
+        List<CodegenProperty> branches = model.getComposedSchemas().getOneOf();
+
+        List<CodegenProperty> rootVars = rootPropertiesTheBranchesLose(model, branches);
+        Set<String> objects = new LinkedHashSet<>();
+        Set<String> others = new LinkedHashSet<>();
+        for (CodegenProperty branch : branches) {
+            // Without root properties to intersect, every member stays in the order of the branches.
+            Set<String> members = !rootVars.isEmpty() && isObject(model, branch) ? objects : others;
+            if (branch.isEnum && branch._enum != null) {
+                // Only numbers and booleans are bare literals; a string with a format, such as a date, needs quotes too.
+                branch._enum.forEach(value -> members.add(branch.isNumeric || branch.isBoolean ? value : TypeScriptSnippets.stringLiteral(value)));
+            } else {
+                members.add(branch.dataType);
+            }
+        }
+        if (model.isNullable) {
+            others.add("null");
+        }
+
+        model.vendorExtensions.put("x-is-one-of", true);
+        if (rootVars.isEmpty()) {
+            model.vendorExtensions.put("x-one-of-type", String.join(" | ", others));
+        } else {
+            prepareProperties(model, rootVars);
+            String union = String.join(" | ", objects);
+            model.vendorExtensions.put("x-one-of-root-vars", rootVars);
+            model.vendorExtensions.put("x-one-of-root-enums", rootVars.stream().anyMatch(property -> property.isEnum));
+            model.vendorExtensions.put("x-one-of-objects", objects.size() > 1 ? "(" + union + ")" : union);
+            model.vendorExtensions.put("x-one-of-others", others.stream().map(member -> " | " + member).collect(Collectors.joining()));
+        }
+
+        List<CodegenProperty> referenced = new ArrayList<>(branches);
+        referenced.addAll(rootVars);
+        return importsOf(model, referenced);
+    }
+
+    /**
+     * Finds the properties of a {@code oneOf} root that some object branch would lose in a plain union: one the branch
+     * does not declare, or does not require although the root requires it. JSON Schema applies {@code properties} and
+     * {@code required} only to objects, so a primitive, array or enum branch loses nothing.
+     *
+     * @param model    the {@code oneOf} model
+     * @param branches its branches
+     * @return copies of the root's properties that have to be intersected with the object branches, in the root's order
+     */
+    private List<CodegenProperty> rootPropertiesTheBranchesLose(CodegenModel model, List<CodegenProperty> branches) {
+        List<CodegenModel> objects = branches.stream().filter(branch -> isObject(model, branch)).map(branch -> branchModel(model, branch)).toList();
+        return declaredProperties(model).stream().filter(property -> objects.stream().anyMatch(branch -> loses(branch, property))).toList();
+    }
+
+    /** Tells whether an object branch, a model or {@code null} for a map, lacks a root property or does not require it as the root does. */
+    private static boolean loses(CodegenModel branch, CodegenProperty rootProperty) {
+        CodegenProperty declared = branch == null ? null
+                : branch.allVars.stream().filter(variable -> variable.baseName.equals(rootProperty.baseName)).findFirst().orElse(null);
+        return declared == null || rootProperty.required && !declared.required;
+    }
+
+    /**
+     * Copies the properties a {@code oneOf} root declares itself, in its order. The parent's codegen model of the root
+     * holds them, followed by those of its branches.
+     */
+    private List<CodegenProperty> declaredProperties(CodegenModel union) {
+        Schema<?> schema = ModelUtils.getSchema(openAPI, union.name);
+        Set<String> declared = schema != null && schema.getProperties() != null ? schema.getProperties().keySet() : Set.of();
+        return union.vars.stream().filter(property -> declared.contains(property.baseName)).map(CodegenProperty::clone).toList();
+    }
+
+    /**
+     * Tells whether a branch of a {@code oneOf} model is a JSON object, to which the root's properties apply: a model
+     * with properties, a nested union, or a map.
+     */
+    private static boolean isObject(CodegenModel model, CodegenProperty branch) {
+        CodegenModel branchModel = branchModel(model, branch);
+        if (branchModel != null) {
+            return !branchModel.isEnum && !branchModel.isArray && !branchModel.isAlias;
+        }
+        return branch.isMap || branch.isFreeFormObject;
+    }
+
+    /** Finds the model of a branch: the parent links a {@code oneOf} root to them; a primitive or array branch has none. */
+    private static CodegenModel branchModel(CodegenModel model, CodegenProperty branch) {
+        return model.getInterfaceModels() == null ? null
+                : model.getInterfaceModels().stream().filter(candidate -> candidate.classname.equals(branch.dataType)).findFirst().orElse(null);
+    }
+
+    /**
+     * Lets a subtype of a {@code oneOf} model declare its inherited properties itself instead of extending the model.
+     * springdoc emits a sealed hierarchy this way: the parent lists its subtypes in {@code oneOf}, and each subtype
+     * extends it with {@code allOf}. An interface cannot extend a union (TS2312).
+     *
+     * <p>The subtype inherits only the properties the parent schema declares itself. The parent's codegen model
+     * merges the properties of all its branches, so the subtype's {@code allVars} would include its siblings'.</p>
+     *
+     * @param model the subtype
+     * @return the imports of the model file: the models that its properties, inherited ones included, refer to at any
+     *         depth
+     */
+    private List<Map<String, String>> inlineUnionParent(CodegenModel model) {
+        Set<String> ownProperties = new HashSet<>();
+        model.vars.forEach(property -> ownProperties.add(property.baseName));
+
+        List<CodegenProperty> vars = new ArrayList<>();
+        for (CodegenProperty property : declaredProperties(model.parentModel)) {
+            if (!ownProperties.contains(property.baseName)) {
+                vars.add(property);
+            }
+        }
+        vars.addAll(model.vars);
+        model.parent = null;
+        model.vars = vars;
+        model.hasVars = !vars.isEmpty();
+        model.hasEnums = vars.stream().anyMatch(property -> property.isEnum);
+
+        return importsOf(model, vars);
+    }
+
+    /**
+     * Collects the imports of a model file: the models that the given properties refer to at any depth, except the
+     * model itself, which a recursive schema refers to.
+     *
+     * @param model      the model whose file gets the imports
+     * @param properties the properties or union branches of the model
+     * @return the imports of the model file
+     */
+    private List<Map<String, String>> importsOf(CodegenModel model, List<CodegenProperty> properties) {
+        Set<String> imports = new LinkedHashSet<>();
+        properties.forEach(property -> addImports(imports, property));
+        imports.remove(model.classname);
+        return imports.stream().map(Angular22Generator::tsImport).toList();
     }
 
     /**

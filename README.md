@@ -61,6 +61,40 @@ export interface CourseUpdate {
 }
 ```
 
+### Unions (`oneOf`)
+
+A `oneOf` schema with at least two branches besides a `{type: 'null'}` one becomes a union of its branches, with a
+`null` member when the schema is nullable or has such a branch:
+
+```typescript
+export type QuizQuestionCreate = MultipleChoiceQuestionCreate | ShortAnswerQuestionCreate;
+```
+
+A primitive or array branch keeps its type (`string`, `Array<A>`), and an inline enum branch contributes its values
+(`'easy' | 'hard'`). The parent generator reduces `oneOf: [{$ref: A}, {type: 'null'}]` to `A` before this step, so
+that schema becomes a copy of `A` without `null`; a property that refers to it is still typed `| null`.
+
+A TypeScript union is not exclusive: a value may match several branches, which `oneOf` forbids. The union is exact
+only when every branch has a distinct single-value discriminator or a primitive type of its own in TypeScript.
+`integer` and `number` both become `number`, so their union accepts `1`, which matches both branches. With a distinct
+single-value enum per branch (`type: {type: string, enum: [multiple-choice]}`, which springdoc emits for
+`@Schema(allowableValues = ...)`), a `switch` on the discriminator also narrows the union. Branches that declare it as
+a plain `string` give a union that neither narrows nor rejects a value matching two branches.
+
+Properties declared on the `oneOf` schema itself apply to every object branch. When an object branch does not declare
+one, or does not require one the schema requires, the object branches are intersected with those properties; other
+branches carry no properties and stay outside:
+
+```typescript
+export type RefinementResponse = (RefinementSuccess | RefinementFailure) & {
+    readonly type: string;
+} | number;
+```
+
+When every object branch already declares the schema's properties, the union stays plain. A subtype that extends a
+`oneOf` schema with `allOf`, the shape springdoc emits for a sealed hierarchy, declares the schema's properties
+itself, since an interface cannot extend a union.
+
 ### API Service (Mutations)
 ```typescript
 @Injectable({ providedIn: 'root' })

@@ -356,6 +356,92 @@ class Angular22GeneratorTest {
     }
 
     @Test
+    void rendersOneOfSchemasAsUnionsOfTheirBranches() throws IOException {
+        generateFixture("fixtures/one-of-openapi.yaml", Map.of());
+
+        assertContains(Files.readString(tempDir.resolve("model/question-create.ts")), """
+                import type { MultipleChoiceQuestionCreate } from './multiple-choice-question-create';
+                import type { ShortAnswerQuestionCreate } from './short-answer-question-create';
+
+                export type QuestionCreate = MultipleChoiceQuestionCreate | ShortAnswerQuestionCreate;
+                """);
+        // A primitive branch keeps its type and needs no import; an array branch imports its item model.
+        assertContains(Files.readString(tempDir.resolve("model/answer-value.ts")), """
+                import type { AnswerOption } from './answer-option';
+
+                export type AnswerValue = string | number | Array<AnswerOption>;
+                """);
+        // A model inside a nested array or map branch is imported too.
+        assertContains(Files.readString(tempDir.resolve("model/grid.ts")), """
+                import type { Cell } from './cell';
+
+                export type Grid = Array<Array<Cell>> | { [key: string]: Array<Cell>; };
+                """);
+        // An inline enum branch contributes its values; its base type would absorb the other members.
+        assertContains(Files.readString(tempDir.resolve("model/difficulty.ts")), """
+                import type { Level } from './level';
+
+                export type Difficulty = Level | 'easy' | 'hard' | 1 | 2;
+                """);
+        // A string enum value with a format is still a string, so it keeps its quotes.
+        assertContains(Files.readString(tempDir.resolve("model/deadline.ts")),
+                "export type Deadline = '2020-01-01' | '2020-01-01T00:00:00Z' | number;");
+        // A recursive union refers to itself without importing itself (TS2440).
+        String jsonValue = Files.readString(tempDir.resolve("model/json-value.ts"));
+        assertContains(jsonValue, "export type JsonValue = string | number | Array<JsonValue> | { [key: string]: JsonValue; };");
+        assertFalse(jsonValue.contains("import "), jsonValue);
+        // The parent's normalizer turns a {type: 'null'} branch into nullable: true.
+        assertContains(Files.readString(tempDir.resolve("model/hint.ts")), "export type Hint = AnswerOption | string | null;");
+        // The discriminator of each branch is a single-value enum, which a switch on it narrows the union by.
+        assertContains(Files.readString(tempDir.resolve("model/multiple-choice-question-create.ts")),
+                "export type MultipleChoiceQuestionCreateTypeEnum = 'multiple-choice';");
+    }
+
+    @Test
+    void declaresTheInheritedPropertiesOfASubtypeOfAUnion() throws IOException {
+        generateFixture("fixtures/one-of-openapi.yaml", Map.of());
+
+        assertContains(Files.readString(tempDir.resolve("model/question.ts")), "export type Question = MultipleChoiceQuestion | ShortAnswerQuestion;");
+        // An interface cannot extend a union, so the subtype states the parent's properties, and none of its sibling's.
+        // It imports the models of nested array properties, its own and the inherited ones.
+        assertContains(Files.readString(tempDir.resolve("model/multiple-choice-question.ts")), """
+                import type { Mark } from './mark';
+                import type { AnswerOption } from './answer-option';
+
+                export interface MultipleChoiceQuestion {
+                    readonly title?: string;
+                    readonly marks?: Array<Array<Mark>>;
+                    readonly type: MultipleChoiceQuestionTypeEnum;
+                    readonly answerOptions?: Array<AnswerOption>;
+                }
+                """);
+        assertContains(Files.readString(tempDir.resolve("model/short-answer-question.ts")), """
+                import type { Mark } from './mark';
+                import type { Cell } from './cell';
+                """);
+    }
+
+    @Test
+    void intersectsTheObjectBranchesWithTheRootPropertiesTheyLose() throws IOException {
+        generateFixture("fixtures/one-of-openapi.yaml", Map.of());
+
+        // RefinementSuccess does not require type and neither branch declares status; the integer branch has no properties.
+        assertContains(Files.readString(tempDir.resolve("model/refinement-response.ts")), """
+                export type RefinementResponse = (RefinementSuccess | RefinementFailure) & {
+                    readonly type: string;
+                    readonly status?: RefinementResponseStatusEnum;
+                } | number;
+
+                export type RefinementResponseStatusEnum = 'open' | 'closed';
+                """);
+        assertContains(Files.readString(tempDir.resolve("model/annotated.ts")), """
+                export type Annotated = { [key: string]: string; } & {
+                    readonly note?: string;
+                } | string;
+                """);
+    }
+
+    @Test
     void passesTheDeclaredStyleOfAQueryParameterToTheHelper() throws IOException {
         generateFixture("fixtures/query-style-openapi.yaml", Map.of());
 

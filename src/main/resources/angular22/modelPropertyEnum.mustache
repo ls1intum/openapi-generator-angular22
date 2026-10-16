@@ -1,0 +1,10 @@
+{{#isEnum}}
+export type {{classname}}{{enumName}} = {{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}};
+
+export const {{classname}}{{enumName}} = {
+{{#allowableValues}}{{#enumVars}}    {{name}}: {{{value}}} as const,
+{{/enumVars}}{{/allowableValues}}} as const;
+
+export const {{classname}}{{enumName}}Values = [{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}] as const;
+
+{{/isEnum}}

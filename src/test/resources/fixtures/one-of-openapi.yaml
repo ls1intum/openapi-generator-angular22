@@ -1,0 +1,294 @@
+openapi: 3.1.1
+info:
+  title: OneOf API
+  version: 1.0.0
+tags:
+  - name: question
+paths:
+  /api/questions:
+    post:
+      tags:
+        - question
+      operationId: createQuestion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuestionCreate'
+      responses:
+        '200':
+          description: The question, in the shape springdoc gives a sealed hierarchy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Question'
+  /api/questions/{questionId}/value:
+    put:
+      tags:
+        - question
+      operationId: setValue
+      parameters:
+        - name: questionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Answer'
+      responses:
+        '200':
+          description: The hint, if any
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hint'
+components:
+  schemas:
+    # oneOf of $ref branches with a discriminator. Each branch declares the discriminator as a single-value enum,
+    # which is what lets a switch on it narrow the union.
+    QuestionCreate:
+      oneOf:
+        - $ref: '#/components/schemas/MultipleChoiceQuestionCreate'
+        - $ref: '#/components/schemas/ShortAnswerQuestionCreate'
+      discriminator:
+        propertyName: type
+        mapping:
+          multiple-choice: '#/components/schemas/MultipleChoiceQuestionCreate'
+          short-answer: '#/components/schemas/ShortAnswerQuestionCreate'
+      required:
+        - type
+      properties:
+        type:
+          type: string
+    MultipleChoiceQuestionCreate:
+      type: object
+      required:
+        - type
+        - answerOptions
+      properties:
+        type:
+          type: string
+          enum:
+            - multiple-choice
+        answerOptions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnswerOption'
+    ShortAnswerQuestionCreate:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - short-answer
+        spots:
+          type: array
+          items:
+            type: integer
+            format: int32
+    Answer:
+      type: object
+      properties:
+        value:
+          $ref: '#/components/schemas/AnswerValue'
+        grid:
+          $ref: '#/components/schemas/Grid'
+        difficulty:
+          $ref: '#/components/schemas/Difficulty'
+    AnswerOption:
+      type: object
+      properties:
+        text:
+          type: string
+    # Primitive and array branches.
+    AnswerValue:
+      oneOf:
+        - type: string
+        - type: integer
+          format: int32
+        - type: array
+          items:
+            $ref: '#/components/schemas/AnswerOption'
+    # Branches that refer to a model only inside nested arrays or maps.
+    Grid:
+      oneOf:
+        - type: array
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Cell'
+        - type: object
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/Cell'
+    # Enum branches: a referenced enum keeps its name, an inline enum contributes its values.
+    Difficulty:
+      oneOf:
+        - $ref: '#/components/schemas/Level'
+        - type: string
+          enum:
+            - easy
+            - hard
+        - type: integer
+          format: int32
+          enum:
+            - 1
+            - 2
+    # String enum branches with a format: their values are strings, not dates.
+    Deadline:
+      oneOf:
+        - type: string
+          format: date
+          enum:
+            - '2020-01-01'
+        - type: string
+          format: date-time
+          enum:
+            - '2020-01-01T00:00:00Z'
+        - type: integer
+    # A recursive union refers to itself in its branches.
+    JsonValue:
+      oneOf:
+        - type: string
+        - type: number
+        - type: array
+          items:
+            $ref: '#/components/schemas/JsonValue'
+        - type: object
+          additionalProperties:
+            $ref: '#/components/schemas/JsonValue'
+    # Root properties that an object branch does not declare, or does not require although the root does, are
+    # intersected with the object branches. A primitive branch carries no properties.
+    RefinementResponse:
+      required:
+        - type
+      properties:
+        type:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - closed
+      oneOf:
+        - $ref: '#/components/schemas/RefinementSuccess'
+        - $ref: '#/components/schemas/RefinementFailure'
+        - type: integer
+    RefinementSuccess:
+      type: object
+      properties:
+        type:
+          type: string
+          enum:
+            - success
+    RefinementFailure:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum:
+            - failure
+    # A map branch is an object too.
+    Annotated:
+      properties:
+        note:
+          type: string
+      oneOf:
+        - type: object
+          additionalProperties:
+            type: string
+        - type: string
+    Level:
+      type: string
+      enum:
+        - BEGINNER
+        - EXPERT
+    Cell:
+      type: object
+      properties:
+        value:
+          type: integer
+          format: int32
+    Mark:
+      type: object
+      properties:
+        label:
+          type: string
+    # A null branch, which the parent's normalizer turns into nullable: true.
+    Hint:
+      oneOf:
+        - $ref: '#/components/schemas/AnswerOption'
+        - type: string
+        - type: 'null'
+    # The shape springdoc emits for a sealed hierarchy: the parent lists its subtypes in oneOf, and each subtype
+    # extends the parent with allOf.
+    Question:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        marks:
+          type: array
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/Mark'
+      oneOf:
+        - $ref: '#/components/schemas/MultipleChoiceQuestion'
+        - $ref: '#/components/schemas/ShortAnswerQuestion'
+      discriminator:
+        propertyName: type
+        mapping:
+          multiple-choice: '#/components/schemas/MultipleChoiceQuestion'
+          short-answer: '#/components/schemas/ShortAnswerQuestion'
+    MultipleChoiceQuestion:
+      allOf:
+        - $ref: '#/components/schemas/Question'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - multiple-choice
+            answerOptions:
+              type: array
+              items:
+                $ref: '#/components/schemas/AnswerOption'
+    ShortAnswerQuestion:
+      allOf:
+        - $ref: '#/components/schemas/Question'
+        - type: object
+          required:
+            - type
+          properties:
+            type:
+              type: string
+              enum:
+                - short-answer
+            spots:
+              type: array
+              items:
+                type: integer
+                format: int32
+            cells:
+              type: array
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cell'
