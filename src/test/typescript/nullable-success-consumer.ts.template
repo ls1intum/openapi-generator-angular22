@@ -1,0 +1,157 @@
+import type { HttpResponse } from '@angular/common/http';
+import type { Observable } from 'rxjs';
+import type { NullableApi } from './api/nullable-api';
+import type { @Job@ as Job } from './model/@JobFile@';
+import type { @Other@ as Other } from './model/@OtherFile@';
+import type { @Payload@ as Payload } from './model/@PayloadFile@';
+import type { @CaseInfo@ as CaseInfo } from './model/@CaseInfoFile@';
+import type { @NullableReference@ as NullableReference } from './model/@NullableReferenceFile@';
+import type { @RecursivePayload@ as RecursivePayload } from './model/@RecursivePayloadFile@';
+import type { @NonNullIntersection@ as NonNullIntersection } from './model/@NonNullIntersectionFile@';
+
+type Emission<T> = T extends Observable<infer V> ? V : never;
+type Result<K extends keyof NullableApi> = NullableApi[K] extends (...args: never[]) => infer R ? Emission<R> : never;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Equal<A, B> = IsAny<A> extends true ? false :
+    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+
+// Equality also rejects unintended null/undefined and any, rather than merely accepting assignments.
+export type ServiceContracts = [
+    Assert<Equal<Result<'getMixed'>, Job | null>>,
+    Assert<Equal<Result<'getMixedReversed'>, Job | null>>,
+    Assert<Equal<Result<'getAccepted'>, Job | null>>,
+    Assert<Equal<Result<'getBodylessFirst'>, Job | null>>,
+    Assert<Equal<Result<'getHeaderBodylessFirst'>, @HEADER_JOB@>>,
+    Assert<Equal<Result<'getHeaderBodylessFirstReversed'>, @HEADER_JOB@>>,
+    // The existing selection policy retains Job, not a union of the different success DTOs.
+    Assert<Equal<Result<'getDifferentSuccessBodies'>, @HEADER_JOB@>>,
+    Assert<Equal<Result<'getOther'>, Other | null>>,
+    Assert<Equal<Result<'getNullableCase'>, CaseInfo | null>>,
+    Assert<Equal<Result<'getNullableReference'>, NullableReference | null>>,
+    Assert<Equal<Result<'getNullableInline'>, { readonly id: string } | null>>,
+    Assert<Equal<Result<'getNullableScalar'>, number | null>>,
+    Assert<Equal<Result<'getNullableJsonString'>, string | null>>,
+    Assert<Equal<Result<'getNullableArray'>, Array<Payload> | null>>,
+    Assert<Equal<Result<'getNullableMap'>, { [key: string]: Payload } | null>>,
+    Assert<Equal<Result<'getNullableItems'>, Array<string | null>>>,
+    Assert<Equal<Result<'getNullableItemsAndRoot'>, Array<string | null> | null>>,
+    Assert<Equal<Result<'getNullableValues'>, { [key: string]: number | null }>>,
+    Assert<Equal<Result<'getNonNull'>, Payload>>,
+    Assert<Equal<Result<'getErrorOnly'>, Payload>>,
+    Assert<Equal<Result<'getUnconstrainedSuccess'>, Payload>>,
+    Assert<Equal<Result<'getRecursive'>, RecursivePayload>>,
+    Assert<Equal<Result<'getIntersection'>, NonNullIntersection>>,
+    Assert<Equal<Result<'sendNullableRequest'>, Payload>>,
+    Assert<Equal<Result<'getHeaderMixed'>, @HEADER_JOB@>>,
+    Assert<Equal<Result<'getHeaderNullable'>, @HEADER_CASE@>>,
+    Assert<Equal<Result<'deleteEmpty'>, void>>,
+    Assert<Equal<Result<'sendEmpty'>, void>>,
+    Assert<Equal<Result<'deleteWithHeaders'>, @HEADER_VOID@>>,
+    Assert<Equal<Result<'getBinary'>, HttpResponse<Blob>>>,
+    Assert<Equal<Result<'getText'>, string>>,
+    Assert<Equal<Result<'getBoolean'>, boolean>>,
+    Assert<Equal<Result<'getNumber'>, number>>,
+    Assert<Equal<Result<'getArray'>, Array<Payload>>>
+];
+
+export const missingJob: Result<'getMixed'> = null;
+export const missingCase: Result<'getNullableCase'> = null;
+// @ts-expect-error Ordinary JSON responses reject null.
+export const ordinaryNull: Result<'getNonNull'> = null;
+// @ts-expect-error Observable emissions do not gain the resource's undefined state.
+export const jobUndefined: Result<'getMixed'> = undefined;
+
+export function checkedJob(value: Result<'getMixed'>): string {
+    // @ts-expect-error A nullable response requires a null check.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+export function checkedCase(value: Result<'getNullableCase'>): string {
+    // @ts-expect-error A nullable single-status response also requires a null check.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+export function ordinary(value: Result<'getNonNull'>): string {
+    return value.id;
+}
+
+// HEADERS_START
+export type FullBodyContracts = [
+    Assert<Equal<Result<'getHeaderMixed'>['body'], Job | null>>,
+    Assert<Equal<Result<'getHeaderBodylessFirst'>['body'], Job | null>>,
+    Assert<Equal<Result<'getHeaderBodylessFirstReversed'>['body'], Job | null>>,
+    Assert<Equal<Result<'getDifferentSuccessBodies'>['body'], Job | null>>,
+    Assert<Equal<Result<'getHeaderNullable'>['body'], CaseInfo | null>>,
+    Assert<Equal<Result<'deleteWithHeaders'>['body'], void | null>>
+];
+
+export function checkedResponse(response: Result<'getHeaderMixed'>): string {
+    // @ts-expect-error HttpResponse.body retains its usual nullable contract.
+    response.body.id;
+    if (response.body === null) return 'absent';
+    return response.body.id;
+}
+
+export function checkedRecoveredResponse(response: Result<'getHeaderBodylessFirst'>): string {
+    // @ts-expect-error The recovered full-response body still requires a null check.
+    response.body.id;
+    if (response.body === null) return 'absent';
+    return response.body.id;
+}
+// HEADERS_END
+
+// RESOURCES_START
+import type { HttpResourceRef } from '@angular/common/http';
+import * as resources from '@RESOURCE_MODULE@';
+
+type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
+export type ResourceContracts = [
+    Assert<Equal<Value<'getMixedResource'>, Job | null | undefined>>,
+    Assert<Equal<ReturnType<typeof resources.getMixedResource>, HttpResourceRef<Job | null | undefined>>>,
+    Assert<Equal<Value<'getMixedReversedResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getAcceptedResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getBodylessFirstResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getHeaderBodylessFirstResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getHeaderBodylessFirstReversedResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getDifferentSuccessBodiesResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getOtherResource'>, Other | null | undefined>>,
+    Assert<Equal<Value<'getNullableCaseResource'>, CaseInfo | null | undefined>>,
+    Assert<Equal<Value<'getNullableReferenceResource'>, NullableReference | null | undefined>>,
+    Assert<Equal<Value<'getNullableInlineResource'>, { readonly id: string } | null | undefined>>,
+    Assert<Equal<Value<'getNullableScalarResource'>, number | null | undefined>>,
+    Assert<Equal<Value<'getNullableJsonStringResource'>, string | null | undefined>>,
+    Assert<Equal<Value<'getNullableArrayResource'>, Array<Payload> | null | undefined>>,
+    Assert<Equal<Value<'getNullableMapResource'>, { [key: string]: Payload } | null | undefined>>,
+    Assert<Equal<Value<'getNullableItemsResource'>, Array<string | null> | undefined>>,
+    Assert<Equal<Value<'getNullableItemsAndRootResource'>, Array<string | null> | null | undefined>>,
+    Assert<Equal<Value<'getNullableValuesResource'>, { [key: string]: number | null } | undefined>>,
+    Assert<Equal<Value<'getNonNullResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getErrorOnlyResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedSuccessResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getRecursiveResource'>, RecursivePayload | undefined>>,
+    Assert<Equal<Value<'getIntersectionResource'>, NonNullIntersection | undefined>>,
+    Assert<Equal<Value<'getHeaderMixedResource'>, Job | null | undefined>>,
+    Assert<Equal<Value<'getHeaderNullableResource'>, CaseInfo | null | undefined>>,
+    Assert<Equal<Value<'getBinaryResource'>, Blob | undefined>>,
+    Assert<Equal<Value<'getTextResource'>, string | undefined>>,
+    Assert<Equal<Value<'getBooleanResource'>, boolean | undefined>>,
+    Assert<Equal<Value<'getNumberResource'>, number | undefined>>,
+    Assert<Equal<Value<'getArrayResource'>, Array<Payload> | undefined>>
+];
+
+export function checkedResource(resource: ReturnType<typeof resources.getMixedResource>): string {
+    const value = resource.value();
+    // @ts-expect-error Resource values require null and undefined checks.
+    value.id;
+    if (value === undefined) return 'loading';
+    // @ts-expect-error Excluding undefined still leaves the successful null result.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+// RESOURCES_END

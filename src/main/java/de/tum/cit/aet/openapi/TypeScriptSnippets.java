@@ -252,7 +252,8 @@ final class TypeScriptSnippets {
             args.add("{ " + String.join(", ", options) + " }");
         }
 
-        String returnType = op.returnType != null ? op.returnType : "void";
+        ResponseTypes types = ResponseTypes.of(op, response, "void");
+        String returnType = observeResponse ? types.effective() : types.body();
         op.vendorExtensions.put("x-observable-type", observeResponse ? "HttpResponse<" + returnType + ">" : returnType);
         op.vendorExtensions.put("x-http-type-arg", response == ResponseKind.JSON ? "<" + returnType + ">" : "");
         op.vendorExtensions.put("x-http-args", String.join(", ", args));
@@ -305,7 +306,7 @@ final class TypeScriptSnippets {
         }
         op.vendorExtensions.put("x-resource-params", String.join(", ", rendered));
 
-        String resourceType = op.returnType != null ? op.returnType : "unknown";
+        String resourceType = ResponseTypes.of(op, response, "unknown").body();
         op.vendorExtensions.put("x-resource-type", resourceType);
         op.vendorExtensions.put("x-resource-factory", switch (response) {
             case JSON -> "httpResource<" + resourceType + ">";
@@ -399,7 +400,7 @@ final class TypeScriptSnippets {
      * @param contentType the declared content type, or null
      * @return the JSON media type to send, or null when none is declared
      */
-    private static String jsonMediaType(String contentType) {
+    static String jsonMediaType(String contentType) {
         if (contentType == null) {
             return null;
         }

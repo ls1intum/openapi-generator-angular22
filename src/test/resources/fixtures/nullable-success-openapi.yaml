@@ -1,0 +1,492 @@
+openapi: 3.0.3
+info:
+  title: Nullable success API
+  version: 1.0.0
+tags:
+  - name: nullable
+paths:
+  /jobs/active:
+    get:
+      tags: [nullable]
+      operationId: getMixed
+      responses:
+        '200':
+          $ref: '#/components/responses/JobBody'
+        '204':
+          $ref: '#/components/responses/NoBody'
+  /jobs/reversed:
+    get:
+      tags: [nullable]
+      operationId: getMixedReversed
+      responses:
+        '204':
+          $ref: '#/components/responses/NoBody'
+        '200':
+          $ref: '#/components/responses/JobBody'
+  /jobs/accepted:
+    get:
+      tags: [nullable]
+      operationId: getAccepted
+      responses:
+        '202':
+          $ref: '#/components/responses/JobBody'
+        '204':
+          description: No body, explicitly empty content
+          content: {}
+  /jobs/bodyless-first:
+    get:
+      tags: [nullable]
+      operationId: getBodylessFirst
+      responses:
+        '200':
+          $ref: '#/components/responses/NoBody'
+        '202':
+          $ref: '#/components/responses/JobBody'
+  /jobs/header-bodyless-first:
+    get:
+      tags: [nullable]
+      operationId: getHeaderBodylessFirst
+      responses:
+        '200':
+          $ref: '#/components/responses/NoBody'
+        '202':
+          $ref: '#/components/responses/JobBodyWithHeaders'
+  /jobs/header-bodyless-first-reversed:
+    get:
+      tags: [nullable]
+      operationId: getHeaderBodylessFirstReversed
+      responses:
+        '202':
+          $ref: '#/components/responses/JobBodyWithHeaders'
+        '200':
+          $ref: '#/components/responses/NoBody'
+  /jobs/different-success-bodies:
+    get:
+      tags: [nullable]
+      operationId: getDifferentSuccessBodies
+      responses:
+        '200':
+          $ref: '#/components/responses/JobBodyWithHeaders'
+        '201':
+          description: A different nullable success body; only its nullability is preserved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Other'
+  /cases/current:
+    get:
+      tags: [nullable]
+      operationId: getNullableCase
+      responses:
+        '200':
+          description: An explicitly nullable component
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseInfo'
+  /other/current:
+    get:
+      tags: [nullable]
+      operationId: getOther
+      responses:
+        '200':
+          description: The alternate model also has its own selected nullable response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Other'
+  /payload/reference:
+    get:
+      tags: [nullable]
+      operationId: getNullableReference
+      responses:
+        '200':
+          description: Nullable reference wrapper
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableReference'
+  /payload/inline:
+    get:
+      tags: [nullable]
+      operationId: getNullableInline
+      responses:
+        '200':
+          description: Nullable inline object
+          content:
+            application/json:
+              schema:
+                title: InlinePayload
+                type: object
+                nullable: true
+                required: [id]
+                properties:
+                  id:
+                    type: string
+  /payload/number:
+    get:
+      tags: [nullable]
+      operationId: getNullableScalar
+      responses:
+        '200':
+          description: Nullable JSON scalar, including zero
+          content:
+            application/json:
+              schema:
+                type: integer
+                nullable: true
+  /payload/string:
+    get:
+      tags: [nullable]
+      operationId: getNullableJsonString
+      responses:
+        '200':
+          description: Nullable JSON string, not text
+          content:
+            application/json:
+              schema:
+                type: string
+                nullable: true
+  /payload/array:
+    get:
+      tags: [nullable]
+      operationId: getNullableArray
+      responses:
+        '200':
+          description: Nullable array root
+          content:
+            application/json:
+              schema:
+                type: array
+                nullable: true
+                items:
+                  $ref: '#/components/schemas/Payload'
+  /payload/map:
+    get:
+      tags: [nullable]
+      operationId: getNullableMap
+      responses:
+        '200':
+          description: Nullable map root
+          content:
+            application/json:
+              schema:
+                type: object
+                nullable: true
+                additionalProperties:
+                  $ref: '#/components/schemas/Payload'
+  /payload/items:
+    get:
+      tags: [nullable]
+      operationId: getNullableItems
+      responses:
+        '200':
+          description: Only the items can be null
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  nullable: true
+  /payload/items-and-root:
+    get:
+      tags: [nullable]
+      operationId: getNullableItemsAndRoot
+      responses:
+        '200':
+          description: Both the array and its items can be null
+          content:
+            application/json:
+              schema:
+                type: array
+                nullable: true
+                items:
+                  type: string
+                  nullable: true
+  /payload/values:
+    get:
+      tags: [nullable]
+      operationId: getNullableValues
+      responses:
+        '200':
+          description: Only the map values can be null
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                  nullable: true
+  /payload/ordinary:
+    get:
+      tags: [nullable]
+      operationId: getNonNull
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+  /payload/errors:
+    get:
+      tags: [nullable]
+      operationId: getErrorOnly
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '400':
+          description: Nullable error, with error-only headers
+          headers:
+            X-Error:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseInfo'
+        '404':
+          $ref: '#/components/responses/NoBody'
+        '500':
+          $ref: '#/components/responses/NoBody'
+        default:
+          $ref: '#/components/responses/NoBody'
+  /payload/unconstrained:
+    get:
+      tags: [nullable]
+      operationId: getUnconstrainedSuccess
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: An unconstrained JSON schema is not missing content
+          content:
+            application/json:
+              schema: {}
+  /payload/recursive:
+    get:
+      tags: [nullable]
+      operationId: getRecursive
+      responses:
+        '200':
+          description: Nested recursion must not widen the root
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecursivePayload'
+  /payload/intersection:
+    get:
+      tags: [nullable]
+      operationId: getIntersection
+      responses:
+        '200':
+          description: One nullable intersection member does not make the intersection nullable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NonNullIntersection'
+  /payload/request:
+    post:
+      tags: [nullable]
+      operationId: sendNullableRequest
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: integer
+              nullable: true
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+  /payload/headers/mixed:
+    get:
+      tags: [nullable]
+      operationId: getHeaderMixed
+      responses:
+        '200':
+          description: JSON body with headers
+          headers:
+            X-Page:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '204':
+          $ref: '#/components/responses/NoBody'
+  /payload/headers/nullable:
+    get:
+      tags: [nullable]
+      operationId: getHeaderNullable
+      responses:
+        '200':
+          description: Nullable body with headers
+          headers:
+            X-Page:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaseInfo'
+  /commands/delete:
+    delete:
+      tags: [nullable]
+      operationId: deleteEmpty
+      responses:
+        '204':
+          $ref: '#/components/responses/NoBody'
+  /commands/empty:
+    post:
+      tags: [nullable]
+      operationId: sendEmpty
+      responses:
+        '200':
+          $ref: '#/components/responses/NoBody'
+  /commands/headers:
+    delete:
+      tags: [nullable]
+      operationId: deleteWithHeaders
+      responses:
+        '204':
+          description: Bodyless success with headers
+          headers:
+            X-Deleted:
+              schema:
+                type: string
+  /payload/binary:
+    get:
+      tags: [nullable]
+      operationId: getBinary
+      responses:
+        '200':
+          description: Existing download overload, even with documented absence
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '204':
+          $ref: '#/components/responses/NoBody'
+  /payload/text:
+    get:
+      tags: [nullable]
+      operationId: getText
+      responses:
+        '200':
+          description: Text nullability is outside this JSON fix
+          content:
+            text/plain:
+              schema:
+                type: string
+                nullable: true
+        '204':
+          $ref: '#/components/responses/NoBody'
+  /payload/boolean:
+    get:
+      tags: [nullable]
+      operationId: getBoolean
+      responses:
+        '200':
+          description: Non-null boolean, including false
+          content:
+            application/json:
+              schema:
+                type: boolean
+  /payload/zero:
+    get:
+      tags: [nullable]
+      operationId: getNumber
+      responses:
+        '200':
+          description: Non-null number, including zero
+          content:
+            application/json:
+              schema:
+                type: integer
+  /payload/empty-array:
+    get:
+      tags: [nullable]
+      operationId: getArray
+      responses:
+        '200':
+          description: Non-null array, including an empty array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Payload'
+components:
+  responses:
+    JobBody:
+      description: A job
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Job'
+    JobBodyWithHeaders:
+      description: A job with success headers
+      headers:
+        X-Job:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Job'
+    PayloadBody:
+      description: A non-null payload with a nullable property
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Payload'
+    NoBody:
+      description: No body
+  schemas:
+    Job:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+    Other:
+      type: object
+      nullable: true
+      required: [other]
+      properties:
+        other:
+          type: integer
+    CaseInfo:
+      type: object
+      nullable: true
+      required: [id]
+      properties:
+        id:
+          type: string
+    Payload:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        note:
+          type: string
+          nullable: true
+    NullableReference:
+      nullable: true
+      allOf:
+        - $ref: '#/components/schemas/Payload'
+    RecursivePayload:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        next:
+          $ref: '#/components/schemas/RecursivePayload'
+        note:
+          type: string
+          nullable: true
+    NonNullIntersection:
+      allOf:
+        - $ref: '#/components/schemas/CaseInfo'
+        - $ref: '#/components/schemas/Payload'

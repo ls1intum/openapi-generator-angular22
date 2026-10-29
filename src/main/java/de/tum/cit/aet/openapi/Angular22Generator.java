@@ -7,6 +7,7 @@ package de.tum.cit.aet.openapi;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.*;
 import org.openapitools.codegen.languages.TypeScriptAngularClientCodegen;
 import org.openapitools.codegen.model.ModelMap;
@@ -41,12 +42,13 @@ import java.util.stream.Collectors;
  * with query parameters import.</p>
  *
  * <p><b>Generation Pipeline</b></p>
- * The generator hooks into four lifecycle stages of the OpenAPI Generator framework:
+ * The generator hooks into five lifecycle stages of the OpenAPI Generator framework:
  * <ol>
  *   <li>{@link #processOpts()} &mdash; Reads CLI options and registers mustache templates.</li>
  *   <li>{@link #processOpenAPI(OpenAPI)} &mdash; Scans paths to determine which tags need resource files.</li>
  *   <li>{@link #postProcessAllModels(Map)} &mdash; Marks models as readonly or mutable, and requires the properties
  *       a subtype restates when its parent requires them.</li>
+ *   <li>{@link #fromOperation(String, String, Operation, List)} &mdash; Retains normalized JSON success nullability.</li>
  *   <li>{@link #postProcessOperationsWithModels(OperationsMap, List)} &mdash; Builds the HttpClient calls,
  *       resource functions and URL templates, and collects imports.</li>
  * </ol>
@@ -122,6 +124,9 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         serviceSuffix = apiNameSuffix;
         // JSON has no sets: a response arrives as an array, and JSON.stringify sends a Set as {}.
         typeMapping.put("set", "Array");
+        // An explicit JSON null is a primitive value, not a model named Null with a model import.
+        typeMapping.put("null", "null");
+        languageSpecificPrimitives.add("null");
         apiTemplateFiles.clear();
         apiTemplateFiles.put("api-service.mustache", "-api.ts");
 
@@ -347,6 +352,27 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     }
 
     /**
+     * Keeps the original properties when a nullable object alias is normalized to a single allOf branch. The parent's
+     * composition path clones properties through the OpenAPI 3.1 serializer, which drops the nullable flags the
+     * normalizer put on their schemas, including array items and map values. Reading the object directly preserves
+     * that metadata without changing the alias's name or its operation-level nullability.
+     */
+    @Override
+    protected void updateModelForComposedSchema(CodegenModel model, Schema schema, Map<String, Schema> allDefinitions) {
+        if (Boolean.TRUE.equals(schema.getNullable()) && schema.getProperties() == null && schema.getRequired() == null
+                && schema.getOneOf() == null && schema.getAnyOf() == null
+                && schema.getAllOf() != null && schema.getAllOf().size() == 1
+                && schema.getAllOf().getFirst() instanceof Schema<?> branch) {
+            Schema<?> object = ModelUtils.getReferencedSchema(openAPI, branch);
+            if (object != null && object.getProperties() != null && !ModelUtils.isComposedSchema(object)) {
+                updateModelForObject(model, object);
+                return;
+            }
+        }
+        super.updateModelForComposedSchema(model, schema, allDefinitions);
+    }
+
+    /**
      * Sets what {@code modelProperty.mustache} reads: {@code x-is-readonly}, true unless the model is an input DTO, and
      * {@code x-property-name}.
      */
@@ -549,6 +575,15 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     // =============================================================================================
     // 5) postProcessOperationsWithModels &mdash; Build calls, resources and URL templates, collect imports
     // =============================================================================================
+
+    /** Retains normalized success-body metadata next to the parent's selected response type and imports. */
+    @Override
+    public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
+        CodegenOperation result = super.fromOperation(path, httpMethod, operation, servers);
+        ResponseTypes.capture(openAPI, operation, result,
+                operation.getResponses() == null ? null : findMethodResponse(operation.getResponses()));
+        return result;
+    }
 
     /**
      * Post-processes all operations for a single API tag. This is the main processing step

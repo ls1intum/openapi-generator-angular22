@@ -71,8 +71,12 @@ export type QuizQuestionCreate = MultipleChoiceQuestionCreate | ShortAnswerQuest
 ```
 
 A primitive or array branch keeps its type (`string`, `Array<A>`), and an inline enum branch contributes its values
-(`'easy' | 'hard'`). The parent generator reduces `oneOf: [{$ref: A}, {type: 'null'}]` to `A` before this step, so
-that schema becomes a copy of `A` without `null`; a property that refers to it is still typed `| null`.
+(`'easy' | 'hard'`). The parent generator reduces `oneOf: [{$ref: A}, {type: 'null'}]` to a nullable reference to
+`A` before this step. Its generated model can still be a copy of `A` without a `null` member; a property that refers
+to it is typed `| null`. JSON operation response types preserve the normalized root nullability as `A | null`
+(or the selected model name plus `null`). Copied object models preserve nullable properties, array items and map
+values. This also covers normalized single-model-plus-null `anyOf` responses; general multi-model `anyOf` support
+and nullable model aliases outside response boundaries are separate limitations.
 
 A TypeScript union is not exclusive: a value may match several branches, which `oneOf` forbids. The union is exact
 only when every branch has a distinct single-value discriminator or a primitive type of its own in TypeScript.
@@ -317,7 +321,43 @@ body in `body` and the response headers in `headers`, in two cases:
   `HttpErrorResponse` already exposes it. The option is off by default, because it changes the return type of every
   such method.
 
-An httpResource function is unaffected; its `HttpResourceRef` exposes the headers of every response as `headers()`.
+Header observation does not change resource factories; `HttpResourceRef` exposes response headers as `headers()`.
+
+JSON body-mode methods return `Observable<T | null>` when a documented success has a body and another is bodyless
+(for example, `200` with `Job` and bodyless `204`), or when a success schema permits a null root, including a single
+nullable `200`. This supports OpenAPI 3.0 `nullable: true` and normalized OpenAPI 3.1 roots, references, inline schemas
+and single-model-plus-null compositions. Nullable properties, array items or map values alone do not widen the root;
+neither do nullable requests or error responses. Explicit JSON `null` content is typed `null`; pure bodyless
+operations keep `void`. A JSON schema `{}` describes unconstrained content, not a missing body.
+
+```typescript
+getActiveJob(): Observable<Job | null> {
+    const url = `${this.basePath}/jobs/active`;
+    return this.http.get<Job | null>(url);
+}
+
+export function getActiveJobResource(): HttpResourceRef<Job | null | undefined> {
+    return httpResource<Job | null>(() => `${BASE_PATH}/jobs/active`);
+}
+```
+
+Separate and inline GET resources use the same nullable JSON body type. Their additional `undefined` represents
+loading/idle state; it is not added to Observable emissions. Full-response methods use `Observable<HttpResponse<T>>`
+with the same effective JSON body type: `HttpResponse<T>.body` already includes `null`. If the parent selects a
+bodyless `200` before a JSON `202` with `Job`, the effective type is recovered as `Job` in both observation modes.
+Nullability does not select full-response observation. Binary/text overloads, request construction and runtime
+values are unchanged; text/binary body-mode nullability remains outside this JSON enhancement.
+
+Response selection still uses one successful body type. The parent's selected body is retained; if it is bodyless,
+the lowest documented JSON success with a body supplies the effective type. This does not form unions of different
+successful DTOs: for non-null `200 Job` and nullable `201 Other`, body mode exposes `Job | null`, preserving the null
+possibility but omitting `Other`. Full-response mode uses `HttpResponse<Job>`.
+
+The input must truthfully document success absence or nullability; it cannot be inferred from server code.
+Angular exposes both an empty JSON response body and a JSON literal `null` as null response values.
+
+This corrected contract can break strict consumers that dereference a now-nullable result without checking it.
+Consumers must check null and, for resource values, the additional undefined state before dereferencing.
 
 An array with `uniqueItems: true` is typed `Array<T>`, not `Set<T>`. JSON has no sets: a response arrives as an
 array, and `JSON.stringify`, which Angular uses for request bodies, sends a `Set` as `{}`. A `typeMappings` entry

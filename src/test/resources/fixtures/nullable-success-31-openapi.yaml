@@ -1,0 +1,252 @@
+openapi: 3.1.1
+info:
+  title: Normalized nullable success API
+  version: 1.0.0
+tags:
+  - name: normalized
+paths:
+  /payload/type:
+    get:
+      tags: [normalized]
+      operationId: getTypeObject
+      responses:
+        '200':
+          description: Nullable component type array
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TypePayload'
+  /payload/inline-type:
+    get:
+      tags: [normalized]
+      operationId: getInlineType
+      responses:
+        '200':
+          description: Nullable inline type array
+          content:
+            application/json:
+              schema:
+                title: InlineTypePayload
+                type: [object, 'null']
+                required: [id]
+                properties:
+                  id:
+                    type: string
+  /payload/one-of:
+    get:
+      tags: [normalized]
+      operationId: getOneOf
+      responses:
+        '200':
+          description: Single model plus null, simplified before fromOperation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleOneOf'
+  /payload/any-of:
+    get:
+      tags: [normalized]
+      operationId: getAnyOf
+      responses:
+        '200':
+          description: Supported single-model anyOf, not a general anyOf union
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SingleAnyOf'
+  /payload/inline-one-of:
+    get:
+      tags: [normalized]
+      operationId: getInlineOneOf
+      responses:
+        '200':
+          description: Inline model reference plus null
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+  /payload/inline-any-of:
+    get:
+      tags: [normalized]
+      operationId: getInlineAnyOf
+      responses:
+        '200':
+          description: Inline single-model anyOf
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+  /payload/array:
+    get:
+      tags: [normalized]
+      operationId: getRootArray
+      responses:
+        '200':
+          description: Nullable array component root
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootArray'
+  /payload/map:
+    get:
+      tags: [normalized]
+      operationId: getRootMap
+      responses:
+        '200':
+          description: Nullable map component root
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootMap'
+  /payload/scalar:
+    get:
+      tags: [normalized]
+      operationId: getRootScalar
+      responses:
+        '200':
+          description: Nullable scalar component root
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RootScalar'
+  /payload/union:
+    get:
+      tags: [normalized]
+      operationId: getUnion
+      responses:
+        '200':
+          description: Existing multi-model union alias already includes null
+          headers:
+            X-Union:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Choice'
+        '204':
+          description: No body; do not append redundant null to the alias
+  /payload/null:
+    get:
+      tags: [normalized]
+      operationId: getJsonNull
+      responses:
+        '200':
+          description: Explicit JSON null content is not a void command
+          content:
+            application/json:
+              schema:
+                type: 'null'
+  /payload/non-null:
+    get:
+      tags: [normalized]
+      operationId: getNonNull
+      responses:
+        '200':
+          description: Ordinary reference must remain non-null after neighboring operations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /payload/null-with-headers:
+    get:
+      tags: [normalized]
+      operationId: getJsonNullWithHeaders
+      responses:
+        '200':
+          description: Explicit JSON null with full-response observation
+          headers:
+            X-Null:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: 'null'
+  /payload/items:
+    get:
+      tags: [normalized]
+      operationId: getNullableItems
+      responses:
+        '200':
+          description: Null is only an item type
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: [string, 'null']
+  /payload/intersection:
+    get:
+      tags: [normalized]
+      operationId: getIntersection
+      responses:
+        '200':
+          description: Non-null intersection of nullable and non-null objects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NonNullIntersection'
+components:
+  schemas:
+    Payload:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        note:
+          type: [string, 'null']
+        sequence:
+          type: [integer, 'null']
+        tags:
+          type: array
+          items:
+            type: [string, 'null']
+        scores:
+          type: object
+          additionalProperties:
+            type: [number, 'null']
+    TypePayload:
+      type: [object, 'null']
+      required: [id]
+      properties:
+        id:
+          type: string
+    SingleOneOf:
+      oneOf:
+        - $ref: '#/components/schemas/Payload'
+        - type: 'null'
+    SingleAnyOf:
+      anyOf:
+        - $ref: '#/components/schemas/Payload'
+        - type: 'null'
+    RootArray:
+      type: [array, 'null']
+      items:
+        $ref: '#/components/schemas/Payload'
+    RootMap:
+      type: [object, 'null']
+      additionalProperties:
+        type: integer
+    RootScalar:
+      type: [boolean, 'null']
+    OtherPayload:
+      type: object
+      required: [other]
+      properties:
+        other:
+          type: integer
+    Choice:
+      oneOf:
+        - $ref: '#/components/schemas/Payload'
+        - $ref: '#/components/schemas/OtherPayload'
+        - type: 'null'
+    NonNullIntersection:
+      allOf:
+        - $ref: '#/components/schemas/TypePayload'
+        - $ref: '#/components/schemas/Payload'
