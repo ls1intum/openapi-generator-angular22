@@ -322,8 +322,67 @@ paths:
                 oneOf:
                   - $ref: '#/components/schemas/Payload'
                   - type: 'null'
+  /payload/omitted-schema:
+    get:
+      tags: [normalized]
+      operationId: getOmittedSchema
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          $ref: '#/components/responses/OmittedJsonBody'
+  /payload/omitted-schema-reversed:
+    get:
+      tags: [normalized]
+      operationId: getOmittedSchemaReversed
+      responses:
+        '201':
+          $ref: '#/components/responses/OmittedJsonBody'
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+  /payload/header-omitted-schema:
+    get:
+      tags: [normalized]
+      operationId: getHeaderOmittedSchema
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          $ref: '#/components/responses/OmittedJsonBodyWithHeaders'
+  /payload/error-omitted-schema:
+    get:
+      tags: [normalized]
+      operationId: getOmittedSchemaError
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '400':
+          $ref: '#/components/responses/OmittedJsonBodyWithHeaders'
+  /payload/omitted-schema-before-body:
+    get:
+      tags: [normalized]
+      operationId: getOmittedSchemaBeforeBody
+      responses:
+        '200':
+          description: No body
+        '201':
+          $ref: '#/components/responses/OmittedJsonBody'
+        '202':
+          $ref: '#/components/responses/PayloadBody'
 components:
   responses:
+    OmittedJsonBody:
+      description: JSON content with no schema permits any JSON value, including null
+      content:
+        application/json: {}
+    OmittedJsonBodyWithHeaders:
+      description: Structured JSON content with an omitted schema and a response header
+      headers:
+        X-Result:
+          schema:
+            type: string
+      content:
+        application/problem+json: {}
     PayloadBody:
       description: The selected successful body stays Payload
       content:

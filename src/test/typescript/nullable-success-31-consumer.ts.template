@@ -13,7 +13,25 @@ type Equal<A, B> = IsAny<A> extends true ? false :
     (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
 type Assert<T extends true> = T;
 
+export const omittedSchemaNull: Result<'getOmittedSchema'> = null;
+// @ts-expect-error Observable emissions do not include resource loading state.
+export const omittedSchemaUndefined: Result<'getOmittedSchema'> = undefined;
+// @ts-expect-error Unconstrained error responses do not widen the selected success body.
+export const omittedSchemaErrorNull: Result<'getOmittedSchemaError'> = null;
+
+export function checkedOmittedSchema(value: Result<'getOmittedSchema'>): string {
+    // @ts-expect-error A null check is required for unconstrained successful JSON content.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
 export type ServiceContracts = [
+    Assert<Equal<Result<'getOmittedSchema'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaReversed'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaBeforeBody'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaError'>, Payload>>,
+    Assert<Equal<Result<'getHeaderOmittedSchema'>, @HEADER_PAYLOAD@>>,
     Assert<Equal<Result<'getTypeObject'>, TypePayload | null>>,
     Assert<Equal<Result<'getInlineType'>, { readonly id: string } | null>>,
     Assert<Equal<Result<'getOneOf'>, Payload | null>>,
@@ -74,9 +92,16 @@ export function checkedNormalized(value: Result<'getOneOf'>): string {
 // HEADERS_START
 import type { HttpResponse } from '@angular/common/http';
 export type FullBodyContracts = [
+    Assert<Equal<Result<'getHeaderOmittedSchema'>['body'], Payload | null>>,
     Assert<Equal<Result<'getJsonNullWithHeaders'>['body'], null>>,
     Assert<Equal<Result<'getUnion'>['body'], Choice>>
 ];
+export function checkedOmittedSchemaResponse(response: Result<'getHeaderOmittedSchema'>): string {
+    // @ts-expect-error Full-response bodies retain null without widening the HttpResponse generic.
+    response.body.id;
+    if (response.body === null) return 'absent';
+    return response.body.id;
+}
 // HEADERS_END
 
 // RESOURCES_START
@@ -84,6 +109,12 @@ import type { HttpResourceRef } from '@angular/common/http';
 import * as resources from '@RESOURCE_MODULE@';
 type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
 export type ResourceContracts = [
+    Assert<Equal<Value<'getOmittedSchemaResource'>, Payload | null | undefined>>,
+    Assert<Equal<ReturnType<typeof resources.getOmittedSchemaResource>, HttpResourceRef<Payload | null | undefined>>>,
+    Assert<Equal<Value<'getOmittedSchemaReversedResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getOmittedSchemaBeforeBodyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getOmittedSchemaErrorResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getHeaderOmittedSchemaResource'>, Payload | null | undefined>>,
     Assert<Equal<Value<'getTypeObjectResource'>, TypePayload | null | undefined>>,
     Assert<Equal<Value<'getInlineTypeResource'>, { readonly id: string } | null | undefined>>,
     Assert<Equal<Value<'getOneOfResource'>, Payload | null | undefined>>,
@@ -116,6 +147,14 @@ export function checkedNormalizedResource(resource: ReturnType<typeof resources.
     value.id;
     if (value === undefined) return 'loading';
     // @ts-expect-error Checking the loading state alone does not exclude a successful null.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+export function checkedOmittedSchemaResource(resource: ReturnType<typeof resources.getOmittedSchemaResource>): string {
+    const value = resource.value();
+    if (value === undefined) return 'loading';
+    // @ts-expect-error An omitted JSON schema still permits a successful null value.
     value.id;
     if (value === null) return 'absent';
     return value.id;

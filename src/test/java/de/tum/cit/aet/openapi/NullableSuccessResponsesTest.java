@@ -48,6 +48,9 @@ class NullableSuccessResponsesTest {
                     "getBoolean", "boolean", "getNumber", "number"));
             types.put("getArray", "Array<Payload>");
             types.put("getOther", "(Other) | null");
+            types.putAll(Map.of(
+                    "getOmittedSchema", "(Payload) | null", "getOmittedSchemaReversed", "(Payload) | null",
+                    "getOmittedSchemaBeforeBody", "(Payload) | null", "getOmittedSchemaError", "Payload"));
             // The inline resolver may reuse an equivalent model. The strict consumer also checks its exact shape.
             types.put("getNullableInline", nullableModelType(api, "getNullableInline"));
             for (var entry : types.entrySet()) {
@@ -59,6 +62,7 @@ class NullableSuccessResponsesTest {
                 assertJsonCall(api, method, headers ? "Job" : "(Job) | null", headers);
             }
             assertJsonCall(api, "getHeaderNullable", headers ? "CaseInfo" : "(CaseInfo) | null", headers);
+            assertJsonCall(api, "getHeaderOmittedSchema", headers ? "Payload" : "(Payload) | null", headers);
             contains(api, "sendNullableRequest(body?: number): Observable<Payload>");
             contains(api, "return this.http.post<Payload>(url, body);");
             contains(api, "deleteEmpty(): Observable<void>");
@@ -81,6 +85,7 @@ class NullableSuccessResponsesTest {
                         : Files.readString(output.resolve("api/nullable-resources.ts"));
                 headerJobs.forEach(method -> types.put(method, "(Job) | null"));
                 types.put("getHeaderNullable", "(CaseInfo) | null");
+                types.put("getHeaderOmittedSchema", "(Payload) | null");
                 for (var entry : types.entrySet()) {
                     assertResource(resources, entry.getKey(), entry.getValue());
                 }
@@ -118,6 +123,9 @@ class NullableSuccessResponsesTest {
                     "getExclusiveEmptyOneOf", "Payload", "getConstrainedNullableEnum", "Payload",
                     "getNullableEnum", "(Payload) | null", "getConstrainedNullableAllOf", "Payload",
                     "getNonNullTypedUnion", "Payload"));
+            types.putAll(Map.of(
+                    "getOmittedSchema", "(Payload) | null", "getOmittedSchemaReversed", "(Payload) | null",
+                    "getOmittedSchemaBeforeBody", "(Payload) | null", "getOmittedSchemaError", "Payload"));
             for (String operation : List.of("getTypeObject", "getInlineType", "getOneOf", "getAnyOf",
                     "getInlineOneOf", "getInlineAnyOf")) {
                 types.put(operation, nullableModelType(api, operation));
@@ -128,6 +136,8 @@ class NullableSuccessResponsesTest {
                 assertJsonCall(api, entry.getKey(), type, observed);
                 assertResource(resources, entry.getKey(), entry.getValue());
             }
+            assertJsonCall(api, "getHeaderOmittedSchema", headers ? "Payload" : "(Payload) | null", headers);
+            assertResource(resources, "getHeaderOmittedSchema", "(Payload) | null");
             assertFalse(api.contains("Observable<void>"));
             assertFalse(api.contains("from '../model/null'"));
             assertFalse(resources.contains("from '../model/null'"));

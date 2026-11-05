@@ -17,7 +17,25 @@ type Equal<A, B> = IsAny<A> extends true ? false :
 type Assert<T extends true> = T;
 
 // Equality also rejects unintended null/undefined and any, rather than merely accepting assignments.
+export const omittedSchemaNull: Result<'getOmittedSchema'> = null;
+// @ts-expect-error Observable emissions do not include resource loading state.
+export const omittedSchemaUndefined: Result<'getOmittedSchema'> = undefined;
+// @ts-expect-error Unconstrained error responses do not widen the selected success body.
+export const omittedSchemaErrorNull: Result<'getOmittedSchemaError'> = null;
+
+export function checkedOmittedSchema(value: Result<'getOmittedSchema'>): string {
+    // @ts-expect-error A null check is required for unconstrained successful JSON content.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
 export type ServiceContracts = [
+    Assert<Equal<Result<'getOmittedSchema'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaReversed'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaBeforeBody'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaError'>, Payload>>,
+    Assert<Equal<Result<'getHeaderOmittedSchema'>, @HEADER_PAYLOAD@>>,
     Assert<Equal<Result<'getMixed'>, Job | null>>,
     Assert<Equal<Result<'getMixedReversed'>, Job | null>>,
     Assert<Equal<Result<'getAccepted'>, Job | null>>,
@@ -82,6 +100,7 @@ export function ordinary(value: Result<'getNonNull'>): string {
 
 // HEADERS_START
 export type FullBodyContracts = [
+    Assert<Equal<Result<'getHeaderOmittedSchema'>['body'], Payload | null>>,
     Assert<Equal<Result<'getHeaderMixed'>['body'], Job | null>>,
     Assert<Equal<Result<'getHeaderBodylessFirst'>['body'], Job | null>>,
     Assert<Equal<Result<'getHeaderBodylessFirstReversed'>['body'], Job | null>>,
@@ -103,6 +122,12 @@ export function checkedRecoveredResponse(response: Result<'getHeaderBodylessFirs
     if (response.body === null) return 'absent';
     return response.body.id;
 }
+export function checkedOmittedSchemaResponse(response: Result<'getHeaderOmittedSchema'>): string {
+    // @ts-expect-error Full-response bodies retain null without widening the HttpResponse generic.
+    response.body.id;
+    if (response.body === null) return 'absent';
+    return response.body.id;
+}
 // HEADERS_END
 
 // RESOURCES_START
@@ -111,6 +136,12 @@ import * as resources from '@RESOURCE_MODULE@';
 
 type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
 export type ResourceContracts = [
+    Assert<Equal<Value<'getOmittedSchemaResource'>, Payload | null | undefined>>,
+    Assert<Equal<ReturnType<typeof resources.getOmittedSchemaResource>, HttpResourceRef<Payload | null | undefined>>>,
+    Assert<Equal<Value<'getOmittedSchemaReversedResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getOmittedSchemaBeforeBodyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getOmittedSchemaErrorResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getHeaderOmittedSchemaResource'>, Payload | null | undefined>>,
     Assert<Equal<Value<'getMixedResource'>, Job | null | undefined>>,
     Assert<Equal<ReturnType<typeof resources.getMixedResource>, HttpResourceRef<Job | null | undefined>>>,
     Assert<Equal<Value<'getMixedReversedResource'>, Job | null | undefined>>,
@@ -150,6 +181,14 @@ export function checkedResource(resource: ReturnType<typeof resources.getMixedRe
     value.id;
     if (value === undefined) return 'loading';
     // @ts-expect-error Excluding undefined still leaves the successful null result.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+export function checkedOmittedSchemaResource(resource: ReturnType<typeof resources.getOmittedSchemaResource>): string {
+    const value = resource.value();
+    if (value === undefined) return 'loading';
+    // @ts-expect-error An omitted JSON schema still permits a successful null value.
     value.id;
     if (value === null) return 'absent';
     return value.id;

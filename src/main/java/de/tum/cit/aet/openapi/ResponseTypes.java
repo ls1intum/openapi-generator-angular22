@@ -7,6 +7,7 @@ package de.tum.cit.aet.openapi;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import org.openapitools.codegen.CodegenOperation;
@@ -69,11 +70,12 @@ record ResponseTypes(String effective, String body) {
                     continue;
                 }
                 bodyless |= isBodyless(response);
-                Schema<?> schema = jsonSchema(response);
-                if (schema != null) {
+                MediaType json = jsonContent(response);
+                if (json != null) {
                     jsonBody = true;
                     // Preserve null evidence from all successes, without forming a union of their DTO body types.
-                    nullable |= allowsNull(api, schema);
+                    // An omitted schema leaves JSON content unconstrained, including the value null.
+                    nullable |= json.getSchema() == null || allowsNull(api, json.getSchema());
                 }
             }
         }
@@ -115,13 +117,17 @@ record ResponseTypes(String effective, String body) {
     }
 
     private static Schema<?> jsonSchema(ApiResponse response) {
+        MediaType json = jsonContent(response);
+        return json == null ? null : json.getSchema();
+    }
+
+    private static MediaType jsonContent(ApiResponse response) {
         if (response == null || response.getContent() == null || response.getContent().isEmpty()) {
             return null;
         }
         // Match the core's first-content selection; do not change text/binary overload selection.
         var entry = response.getContent().entrySet().iterator().next();
-        return TypeScriptSnippets.jsonMediaType(entry.getKey()) != null && entry.getValue() != null
-                ? entry.getValue().getSchema() : null;
+        return TypeScriptSnippets.jsonMediaType(entry.getKey()) != null ? entry.getValue() : null;
     }
 
     private static ApiResponse resolveResponse(OpenAPI api, ApiResponse response) {

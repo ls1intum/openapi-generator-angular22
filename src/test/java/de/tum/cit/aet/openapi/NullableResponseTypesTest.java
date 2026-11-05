@@ -80,6 +80,7 @@ class NullableResponseTypesTest {
         consumer = consumer.replace("@RESOURCE_MODULE@", "./api/" + fixture.tag() + (separate ? "-resources" : "-api"))
                 .replace("@HEADER_JOB@", headers ? "HttpResponse<Job>" : "Job | null")
                 .replace("@HEADER_CASE@", headers ? "HttpResponse<CaseInfo>" : "CaseInfo | null")
+                .replace("@HEADER_PAYLOAD@", headers ? "HttpResponse<Payload>" : "Payload | null")
                 .replace("@HEADER_VOID@", headers ? "HttpResponse<void>" : "void")
                 .replace("@HEADER_NULL@", headers ? "HttpResponse<null>" : "null")
                 .replace("@HEADER_FUNCTION@", headers ? "HttpResponse<() => string>" : "(() => string) | null")
