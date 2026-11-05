@@ -334,6 +334,8 @@ getActiveJobResource(): HttpResourceRef<Job | null | undefined>;
 Separate and inline resources retain `undefined` for loading/idle state. Full-response methods use the same body
 type in `HttpResponse<T>`, whose `body` already permits null; nullability does not enable full-response observation.
 Different successful DTO schemas are still not combined into a union.
+When the selected success is bodyless and no concrete JSON body type can be recovered, a schema-less JSON success
+uses `unknown`, which already includes null and requires consumers to validate the value before use.
 
 The input must accurately document absence or nullability; the generator cannot infer it from server code.
 Corrected nullable types can break strict consumers: check for null and, for resource values, undefined before dereferencing.

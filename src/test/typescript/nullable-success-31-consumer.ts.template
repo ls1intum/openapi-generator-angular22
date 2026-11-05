@@ -27,6 +27,10 @@ export function checkedOmittedSchema(value: Result<'getOmittedSchema'>): string 
 }
 
 export type ServiceContracts = [
+    Assert<Equal<Result<'getUnknownSuccess'>, unknown>>,
+    Assert<Equal<Result<'getUnknownSuccessReversed'>, unknown>>,
+    Assert<Equal<Result<'getHeaderUnknownSuccess'>, @HEADER_UNKNOWN@>>,
+    Assert<Equal<Result<'sendBodylessOnly'>, void>>,
     Assert<Equal<Result<'getOmittedSchema'>, Payload | null>>,
     Assert<Equal<Result<'getOmittedSchemaReversed'>, Payload | null>>,
     Assert<Equal<Result<'getOmittedSchemaBeforeBody'>, Payload | null>>,
@@ -92,6 +96,7 @@ export function checkedNormalized(value: Result<'getOneOf'>): string {
 // HEADERS_START
 import type { HttpResponse } from '@angular/common/http';
 export type FullBodyContracts = [
+    Assert<Equal<Result<'getHeaderUnknownSuccess'>['body'], unknown>>,
     Assert<Equal<Result<'getHeaderOmittedSchema'>['body'], Payload | null>>,
     Assert<Equal<Result<'getJsonNullWithHeaders'>['body'], null>>,
     Assert<Equal<Result<'getUnion'>['body'], Choice>>
@@ -102,6 +107,11 @@ export function checkedOmittedSchemaResponse(response: Result<'getHeaderOmittedS
     if (response.body === null) return 'absent';
     return response.body.id;
 }
+export function checkedUnknownResponse(response: Result<'getHeaderUnknownSuccess'>): string {
+    // @ts-expect-error An unknown full-response body needs validation before property access.
+    response.body.id;
+    return checkedUnknown(response.body);
+}
 // HEADERS_END
 
 // RESOURCES_START
@@ -109,6 +119,10 @@ import type { HttpResourceRef } from '@angular/common/http';
 import * as resources from '@RESOURCE_MODULE@';
 type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
 export type ResourceContracts = [
+    Assert<Equal<Value<'getUnknownSuccessResource'>, unknown>>,
+    Assert<Equal<ReturnType<typeof resources.getUnknownSuccessResource>, HttpResourceRef<unknown>>>,
+    Assert<Equal<Value<'getUnknownSuccessReversedResource'>, unknown>>,
+    Assert<Equal<Value<'getHeaderUnknownSuccessResource'>, unknown>>,
     Assert<Equal<Value<'getOmittedSchemaResource'>, Payload | null | undefined>>,
     Assert<Equal<ReturnType<typeof resources.getOmittedSchemaResource>, HttpResourceRef<Payload | null | undefined>>>,
     Assert<Equal<Value<'getOmittedSchemaReversedResource'>, Payload | null | undefined>>,
@@ -159,4 +173,27 @@ export function checkedOmittedSchemaResource(resource: ReturnType<typeof resourc
     if (value === null) return 'absent';
     return value.id;
 }
+export function checkedUnknownResource(resource: ReturnType<typeof resources.getUnknownSuccessResource>): string {
+    const value = resource.value();
+    if (value === undefined) return 'loading';
+    // @ts-expect-error Excluding loading state does not establish the arbitrary JSON body's shape.
+    value.id;
+    return checkedUnknown(value);
+}
 // RESOURCES_END
+
+export const unknownNull: Result<'getUnknownSuccess'> = null;
+export const unknownObject: Result<'getUnknownSuccess'> = { id: 'ready' };
+export const unknownArray: Result<'getUnknownSuccess'> = [1, 'ready', null];
+export const unknownNumber: Result<'getUnknownSuccess'> = 0;
+export const unknownBoolean: Result<'getUnknownSuccess'> = false;
+
+export function checkedUnknown(value: Result<'getUnknownSuccess'>): string {
+    // @ts-expect-error Arbitrary JSON cannot be consumed as a known DTO.
+    value.id;
+    if (value === null) return 'absent';
+    // @ts-expect-error A null check alone does not validate the response shape.
+    value.id;
+    if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') return value.id;
+    return 'other';
+}

@@ -81,6 +81,7 @@ class NullableResponseTypesTest {
                 .replace("@HEADER_JOB@", headers ? "HttpResponse<Job>" : "Job | null")
                 .replace("@HEADER_CASE@", headers ? "HttpResponse<CaseInfo>" : "CaseInfo | null")
                 .replace("@HEADER_PAYLOAD@", headers ? "HttpResponse<Payload>" : "Payload | null")
+                .replace("@HEADER_UNKNOWN@", headers ? "HttpResponse<unknown>" : "unknown")
                 .replace("@HEADER_VOID@", headers ? "HttpResponse<void>" : "void")
                 .replace("@HEADER_NULL@", headers ? "HttpResponse<null>" : "null")
                 .replace("@HEADER_FUNCTION@", headers ? "HttpResponse<() => string>" : "(() => string) | null")

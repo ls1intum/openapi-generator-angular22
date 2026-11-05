@@ -462,6 +462,45 @@ paths:
           $ref: '#/components/responses/OmittedJsonBody'
         '202':
           $ref: '#/components/responses/PayloadBody'
+  /payload/unknown-success:
+    get:
+      tags: [nullable]
+      operationId: getUnknownSuccess
+      responses:
+        '200':
+          description: No body
+        '201':
+          $ref: '#/components/responses/OmittedJsonBody'
+  /payload/unknown-success-reversed:
+    get:
+      tags: [nullable]
+      operationId: getUnknownSuccessReversed
+      responses:
+        '201':
+          $ref: '#/components/responses/OmittedJsonBody'
+        '200':
+          description: No body
+  /payload/header-unknown-success:
+    get:
+      tags: [nullable]
+      operationId: getHeaderUnknownSuccess
+      responses:
+        '200':
+          description: No body
+        '201':
+          $ref: '#/components/responses/OmittedJsonBodyWithHeaders'
+  /payload/bodyless-only:
+    post:
+      tags: [nullable]
+      operationId: sendBodylessOnly
+      responses:
+        '200':
+          description: Empty content still describes a bodyless success
+          content: {}
+        '204':
+          description: No body
+        '500':
+          $ref: '#/components/responses/OmittedJsonBodyWithHeaders'
 components:
   responses:
     OmittedJsonBody:

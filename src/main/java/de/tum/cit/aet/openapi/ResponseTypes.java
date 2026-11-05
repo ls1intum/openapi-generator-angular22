@@ -97,6 +97,12 @@ record ResponseTypes(String effective, String body) {
                     .filter(value -> value != null).findFirst().orElse(null);
             if (type != null) {
                 op.vendorExtensions.put(BODY_TYPE, type);
+            } else if (source.getResponses().entrySet().stream()
+                    .filter(entry -> entry.getKey().startsWith("2"))
+                    .map(entry -> jsonContent(resolveResponse(api, entry.getValue())))
+                    .anyMatch(json -> json != null && json.getSchema() == null)) {
+                // No concrete body was recovered, but documented JSON content is still a body, not void.
+                op.vendorExtensions.put(BODY_TYPE, "unknown");
             }
         }
     }
@@ -111,7 +117,8 @@ record ResponseTypes(String effective, String body) {
             return new ResponseTypes(effective, effective);
         }
         effective = (String) op.vendorExtensions.getOrDefault(BODY_TYPE, effective);
-        String body = Boolean.TRUE.equals(op.vendorExtensions.get(NULLABLE)) && !"void".equals(effective)
+        String body = Boolean.TRUE.equals(op.vendorExtensions.get(NULLABLE))
+                && !"void".equals(effective) && !"unknown".equals(effective)
                 ? "(" + effective + ") | null" : effective;
         return new ResponseTypes(effective, body);
     }
