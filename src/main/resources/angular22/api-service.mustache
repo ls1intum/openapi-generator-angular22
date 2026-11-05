@@ -15,9 +15,9 @@ import { Signal } from '@angular/core';
 {{#tsImports}}
 import { {{classname}} } from '../model/{{filename}}';
 {{/tsImports}}
-{{#operations.hasQueryParams}}
+{{#operations.usesQueryHelper}}
 import { appendQueryParam } from './query-params';
-{{/operations.hasQueryParams}}
+{{/operations.usesQueryHelper}}
 
 @Injectable({ providedIn: 'root' })
 export class {{classname}} {
@@ -59,6 +59,13 @@ export class {{classname}} {
         }
 {{/headerParams}}
 {{/hasHeaderParams}}
+{{#vendorExtensions.x-url-encoded}}
+        const formBody = new URLSearchParams();
+{{#formParams}}
+        appendQueryParam(formBody, {{{vendorExtensions.x-wire-name-literal}}}, {{paramName}}{{{vendorExtensions.x-query-style-args}}});
+{{/formParams}}
+{{/vendorExtensions.x-url-encoded}}
+{{^vendorExtensions.x-url-encoded}}
 {{#hasFormParams}}
         const formData = new FormData();
 {{#formParams}}
@@ -67,6 +74,7 @@ export class {{classname}} {
         }
 {{/formParams}}
 {{/hasFormParams}}
+{{/vendorExtensions.x-url-encoded}}
         return this.http.{{httpMethod}}{{{vendorExtensions.x-http-type-arg}}}({{{vendorExtensions.x-http-args}}});
     }
 

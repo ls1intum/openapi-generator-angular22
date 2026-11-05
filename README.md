@@ -194,6 +194,15 @@ encoding:
     contentType: application/json
 ```
 
+### URL-Encoded Form Bodies
+
+A request body of `application/x-www-form-urlencoded` goes out as a URL-encoded string with that media type, not as
+`FormData`, which Angular would send as `multipart/form-data`. Each field follows the query rules above through the
+same helper: the style and `explode` of its `encoding` entry, or form with `explode` by default. Null and undefined
+fields are left out, and an empty string is sent. The parser fills in the form style for an `encoding` entry without
+one, so a `contentType` in an entry has no effect. Declared header parameters are sent next to the form's
+`Content-Type`.
+
 ## Installation
 
 ### Gradle (Artemis, other AET projects)

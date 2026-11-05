@@ -6,6 +6,10 @@ package de.tum.cit.aet.openapi;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.media.Encoding;
+import io.swagger.v3.oas.models.media.MediaType;
+import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.*;
@@ -67,7 +71,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
 
 
     /** Identifiers that a generated service method or resource function declares or calls next to its parameters. */
-    private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "headers",
+    private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "formBody", "headers",
             "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject");
 
     /** Generator name used by the OpenAPI Generator SPI and CLI. */
@@ -623,7 +627,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             TypeScriptSnippets.processPathParameters(op, locals);
             TypeScriptSnippets.processHeaderParameters(op, locals);
             processQueryParameters(op);
-            TypeScriptSnippets.processFormParameters(op);
+            TypeScriptSnippets.processFormParameters(op, urlEncodedFormEncodings(op));
             TypeScriptSnippets.buildHttpCall(op, response, TypeScriptSnippets.observesResponse(op, observeResponseHeaders));
 
             String specPath = op.vendorExtensions.get("x-path-from-spec").toString();
@@ -640,6 +644,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         // The service class holds every operation, including the GETs of the inline resources in the same file;
         // the separate resources file holds only the GETs.
         operations.put("hasQueryParams", ops.stream().anyMatch(op -> !op.queryParams.isEmpty()));
+        // URL-encoded form fields follow the query rules, so they go through the same helper.
+        operations.put("usesQueryHelper", ops.stream().anyMatch(op -> !op.queryParams.isEmpty() || TypeScriptSnippets.isUrlEncodedForm(op)));
         operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));
         operations.put("usesHttpResponse", ops.stream().anyMatch(op -> TypeScriptSnippets.observesResponse(op, observeResponseHeaders)));
         operations.put("hasSignalArguments", getOperations.stream()
@@ -649,6 +655,27 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         result.put("resourceTsImports", toTsImports(getOperations));
 
         return result;
+    }
+
+    /**
+     * Returns the {@code encoding} entries of an operation's URL-encoded request body by field name. The parent does
+     * not carry them into the form parameters, so they are read from the spec.
+     *
+     * @param op the operation
+     * @return the entries, or an empty map when the body is not URL-encoded or declares none
+     */
+    private Map<String, Encoding> urlEncodedFormEncodings(CodegenOperation op) {
+        if (!TypeScriptSnippets.isUrlEncodedForm(op) || openAPI.getPaths() == null) {
+            return Map.of();
+        }
+        PathItem path = openAPI.getPaths().get(op.path);
+        Operation operation = path == null ? null : path.readOperationsMap().get(PathItem.HttpMethod.valueOf(op.httpMethod.toUpperCase(Locale.ROOT)));
+        if (operation == null || operation.getRequestBody() == null) {
+            return Map.of();
+        }
+        RequestBody body = ModelUtils.getReferencedRequestBody(openAPI, operation.getRequestBody());
+        MediaType form = body.getContent() == null ? null : body.getContent().get("application/x-www-form-urlencoded");
+        return form == null || form.getEncoding() == null ? Map.of() : form.getEncoding();
     }
 
     private List<Map<String, String>> toTsImports(List<CodegenOperation> ops) {
