@@ -6,10 +6,8 @@ package de.tum.cit.aet.openapi;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Encoding;
 import io.swagger.v3.oas.models.media.MediaType;
-import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.*;
@@ -627,7 +625,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             TypeScriptSnippets.processPathParameters(op, locals);
             TypeScriptSnippets.processHeaderParameters(op, locals);
             processQueryParameters(op);
-            TypeScriptSnippets.processFormParameters(op, urlEncodedFormEncodings(op));
+            TypeScriptSnippets.processFormParameters(op);
             TypeScriptSnippets.buildHttpCall(op, response, TypeScriptSnippets.observesResponse(op, observeResponseHeaders));
 
             String specPath = op.vendorExtensions.get("x-path-from-spec").toString();
@@ -657,25 +655,13 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         return result;
     }
 
-    /**
-     * Returns the {@code encoding} entries of an operation's URL-encoded request body by field name. The parent does
-     * not carry them into the form parameters, so they are read from the spec.
-     *
-     * @param op the operation
-     * @return the entries, or an empty map when the body is not URL-encoded or declares none
-     */
-    private Map<String, Encoding> urlEncodedFormEncodings(CodegenOperation op) {
-        if (!TypeScriptSnippets.isUrlEncodedForm(op) || openAPI.getPaths() == null) {
-            return Map.of();
-        }
-        PathItem path = openAPI.getPaths().get(op.path);
-        Operation operation = path == null ? null : path.readOperationsMap().get(PathItem.HttpMethod.valueOf(op.httpMethod.toUpperCase(Locale.ROOT)));
-        if (operation == null || operation.getRequestBody() == null) {
-            return Map.of();
-        }
-        RequestBody body = ModelUtils.getReferencedRequestBody(openAPI, operation.getRequestBody());
-        MediaType form = body.getContent() == null ? null : body.getContent().get("application/x-www-form-urlencoded");
-        return form == null || form.getEncoding() == null ? Map.of() : form.getEncoding();
+    /** Retains the encoding's explode setting, which upstream resets for non-container fields. */
+    @Override
+    public void setParameterEncodingValues(CodegenParameter parameter, MediaType mediaType) {
+        super.setParameterEncodingValues(parameter, mediaType);
+        Encoding encoding = mediaType == null || mediaType.getEncoding() == null
+                ? null : mediaType.getEncoding().get(parameter.baseName);
+        parameter.vendorExtensions.put("x-query-style-args", TypeScriptSnippets.formStyleArguments(encoding));
     }
 
     private List<Map<String, String>> toTsImports(List<CodegenOperation> ops) {

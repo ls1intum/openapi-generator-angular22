@@ -184,7 +184,7 @@ final class TypeScriptSnippets {
      * OpenAPI allows in a form, and fills in form for an entry without one, so an entry's {@code contentType} cannot
      * be told apart from an explicit form style and is not used.
      */
-    private static String formStyleArguments(Encoding encoding) {
+    static String formStyleArguments(Encoding encoding) {
         if (encoding == null) {
             return "";
         }
@@ -368,16 +368,13 @@ final class TypeScriptSnippets {
      * serializes its fields by the query rules. Each field takes the style and explode of its {@code encoding} entry,
      * or form with explode by default.</p>
      *
-     * @param op        the operation whose form parameters should be processed
-     * @param encodings the {@code encoding} entries of the URL-encoded body by field name, empty for any other body
+     * @param op the operation whose form parameters should be processed
      */
-    static void processFormParameters(CodegenOperation op, Map<String, Encoding> encodings) {
+    static void processFormParameters(CodegenOperation op) {
         if (isUrlEncodedForm(op)) {
             op.vendorExtensions.put("x-url-encoded", true);
             for (CodegenParameter param : op.formParams) {
-                Encoding encoding = encodings.get(param.baseName);
                 param.vendorExtensions.put("x-wire-name-literal", stringLiteral(param.baseName));
-                param.vendorExtensions.put("x-query-style-args", formStyleArguments(encoding));
             }
             return;
         }

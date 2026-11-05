@@ -55,6 +55,11 @@ paths:
                   type: array
                   items:
                     type: string
+                defaultObject:
+                  type: object
+                  properties:
+                    count:
+                      type: integer
             encoding:
               joined:
                 style: form
