@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
  * <p><b>Generation Pipeline</b></p>
  * The generator hooks into five lifecycle stages of the OpenAPI Generator framework:
  * <ol>
- *   <li>{@link #processOpts()} &mdash; Reads CLI options and registers mustache templates.</li>
+ *   <li>{@link #processOpts()} &mdash; Reads CLI options, registers templates and captures source success nullability.</li>
  *   <li>{@link #processOpenAPI(OpenAPI)} &mdash; Scans paths to determine which tags need resource files.</li>
  *   <li>{@link #postProcessAllModels(Map)} &mdash; Marks models as readonly or mutable, and requires the properties
  *       a subtype restates when its parent requires them.</li>
@@ -186,6 +186,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
+        ResponseTypes.captureBeforeNormalization(openAPI);
 
         supportingFiles.clear();
         supportingFiles.add(new SupportingFile("query-params.mustache", "api", "query-params.ts"));

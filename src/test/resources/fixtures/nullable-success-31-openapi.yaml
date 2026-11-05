@@ -129,7 +129,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Choice'
         '204':
-          description: No body; do not append redundant null to the alias
+          description: No body; redundant null on the nullable alias is harmless
   /payload/null:
     get:
       tags: [normalized]
@@ -191,7 +191,145 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NonNullIntersection'
+  /payload/unconstrained:
+    get:
+      tags: [normalized]
+      operationId: getUnconstrainedSuccess
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema: {}
+  /payload/all-of-empty:
+    get:
+      tags: [normalized]
+      operationId: getUnconstrainedAllOf
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - {}
+                  - $ref: '#/components/schemas/TypePayload'
+  /payload/any-of-empty:
+    get:
+      tags: [normalized]
+      operationId: getUnconstrainedAnyOf
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - {}
+                  - $ref: '#/components/schemas/Payload'
+  /payload/one-of-empty:
+    get:
+      tags: [normalized]
+      operationId: getUnconstrainedOneOf
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {}
+                  - $ref: '#/components/schemas/Payload'
+  /payload/exclusive-empty:
+    get:
+      tags: [normalized]
+      operationId: getExclusiveEmptyOneOf
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {}
+                  - {}
+  /payload/restricted-enum:
+    get:
+      tags: [normalized]
+      operationId: getConstrainedNullableEnum
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                type: [string, 'null']
+                enum: [ready]
+  /payload/nullable-enum:
+    get:
+      tags: [normalized]
+      operationId: getNullableEnum
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                type: [string, 'null']
+                enum: [ready, null]
+  /payload/restricted-all-of:
+    get:
+      tags: [normalized]
+      operationId: getConstrainedNullableAllOf
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                type: [object, 'null']
+                allOf:
+                  - $ref: '#/components/schemas/Payload'
+  /payload/typed-union:
+    get:
+      tags: [normalized]
+      operationId: getNonNullTypedUnion
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Additional JSON success; retain the selected Payload body and evaluate null membership
+          content:
+            application/json:
+              schema:
+                type: object
+                oneOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
 components:
+  responses:
+    PayloadBody:
+      description: The selected successful body stays Payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Payload'
   schemas:
     Payload:
       type: object

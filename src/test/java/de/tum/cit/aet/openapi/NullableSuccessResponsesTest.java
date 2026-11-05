@@ -34,20 +34,20 @@ class NullableSuccessResponsesTest {
             String api = Files.readString(output.resolve("api/nullable-api.ts"));
             boolean headers = "true".equals(options.get("observeResponseHeaders"));
             Map<String, String> types = new LinkedHashMap<>(Map.of(
-                    "getMixed", "Job | null", "getMixedReversed", "Job | null", "getAccepted", "Job | null",
-                    "getBodylessFirst", "Job | null", "getNullableCase", "CaseInfo | null",
-                    "getNullableReference", "NullableReference | null", "getNullableScalar", "number | null",
-                    "getNullableJsonString", "string | null", "getNullableArray", "Array<Payload> | null",
-                    "getNullableMap", "{ [key: string]: Payload; } | null"));
+                    "getMixed", "(Job) | null", "getMixedReversed", "(Job) | null", "getAccepted", "(Job) | null",
+                    "getBodylessFirst", "(Job) | null", "getNullableCase", "(CaseInfo) | null",
+                    "getNullableReference", "(NullableReference) | null", "getNullableScalar", "(number) | null",
+                    "getNullableJsonString", "(string) | null", "getNullableArray", "(Array<Payload>) | null",
+                    "getNullableMap", "({ [key: string]: Payload; }) | null"));
             types.putAll(Map.of(
                     "getNullableItems", "Array<string | null>",
-                    "getNullableItemsAndRoot", "Array<string | null> | null",
+                    "getNullableItemsAndRoot", "(Array<string | null>) | null",
                     "getNullableValues", "{ [key: string]: number | null; }",
-                    "getNonNull", "Payload", "getErrorOnly", "Payload", "getUnconstrainedSuccess", "Payload",
+                    "getNonNull", "Payload", "getErrorOnly", "Payload", "getUnconstrainedSuccess", "(Payload) | null",
                     "getRecursive", "RecursivePayload", "getIntersection", "NonNullIntersection",
                     "getBoolean", "boolean", "getNumber", "number"));
             types.put("getArray", "Array<Payload>");
-            types.put("getOther", "Other | null");
+            types.put("getOther", "(Other) | null");
             // The inline resolver may reuse an equivalent model. The strict consumer also checks its exact shape.
             types.put("getNullableInline", nullableModelType(api, "getNullableInline"));
             for (var entry : types.entrySet()) {
@@ -56,9 +56,9 @@ class NullableSuccessResponsesTest {
             List<String> headerJobs = List.of("getHeaderMixed", "getHeaderBodylessFirst",
                     "getHeaderBodylessFirstReversed", "getDifferentSuccessBodies");
             for (String method : headerJobs) {
-                assertJsonCall(api, method, headers ? "Job" : "Job | null", headers);
+                assertJsonCall(api, method, headers ? "Job" : "(Job) | null", headers);
             }
-            assertJsonCall(api, "getHeaderNullable", headers ? "CaseInfo" : "CaseInfo | null", headers);
+            assertJsonCall(api, "getHeaderNullable", headers ? "CaseInfo" : "(CaseInfo) | null", headers);
             contains(api, "sendNullableRequest(body?: number): Observable<Payload>");
             contains(api, "return this.http.post<Payload>(url, body);");
             contains(api, "deleteEmpty(): Observable<void>");
@@ -79,8 +79,8 @@ class NullableSuccessResponsesTest {
             } else {
                 String resources = "false".equals(options.get("separateResources")) ? api
                         : Files.readString(output.resolve("api/nullable-resources.ts"));
-                headerJobs.forEach(method -> types.put(method, "Job | null"));
-                types.put("getHeaderNullable", "CaseInfo | null");
+                headerJobs.forEach(method -> types.put(method, "(Job) | null"));
+                types.put("getHeaderNullable", "(CaseInfo) | null");
                 for (var entry : types.entrySet()) {
                     assertResource(resources, entry.getKey(), entry.getValue());
                 }
@@ -107,22 +107,27 @@ class NullableSuccessResponsesTest {
             String api = Files.readString(output.resolve("api/normalized-api.ts"));
             String resources = separate ? Files.readString(output.resolve("api/normalized-resources.ts")) : api;
             Map<String, String> types = new LinkedHashMap<>(Map.of(
-                    "getRootArray", "Array<Payload> | null", "getRootMap", "{ [key: string]: number; } | null",
-                    "getRootScalar", "boolean | null", "getJsonNull", "null", "getUnion", "Choice",
+                    "getRootArray", "(Array<Payload>) | null", "getRootMap", "({ [key: string]: number; }) | null",
+                    "getRootScalar", "(boolean) | null", "getJsonNull", "(null) | null", "getUnion", "(Choice) | null",
                     "getNonNull", "Payload", "getNullableItems", "Array<string | null>",
                     "getIntersection", "NonNullIntersection"));
-            types.put("getJsonNullWithHeaders", "null");
+            types.put("getJsonNullWithHeaders", "(null) | null");
+            types.putAll(Map.of(
+                    "getUnconstrainedSuccess", "(Payload) | null", "getUnconstrainedAllOf", "(Payload) | null",
+                    "getUnconstrainedAnyOf", "(Payload) | null", "getUnconstrainedOneOf", "(Payload) | null",
+                    "getExclusiveEmptyOneOf", "Payload", "getConstrainedNullableEnum", "Payload",
+                    "getNullableEnum", "(Payload) | null", "getConstrainedNullableAllOf", "Payload",
+                    "getNonNullTypedUnion", "Payload"));
             for (String operation : List.of("getTypeObject", "getInlineType", "getOneOf", "getAnyOf",
                     "getInlineOneOf", "getInlineAnyOf")) {
                 types.put(operation, nullableModelType(api, operation));
             }
             for (var entry : types.entrySet()) {
                 boolean observed = headers && List.of("getUnion", "getJsonNullWithHeaders").contains(entry.getKey());
-                assertJsonCall(api, entry.getKey(), entry.getValue(), observed);
+                String type = observed ? ("getUnion".equals(entry.getKey()) ? "Choice" : "null") : entry.getValue();
+                assertJsonCall(api, entry.getKey(), type, observed);
                 assertResource(resources, entry.getKey(), entry.getValue());
             }
-            assertFalse(api.contains("Choice | null"));
-            assertFalse(api.contains("null | null"));
             assertFalse(api.contains("Observable<void>"));
             assertFalse(api.contains("from '../model/null'"));
             assertFalse(resources.contains("from '../model/null'"));
@@ -131,20 +136,18 @@ class NullableSuccessResponsesTest {
     }
 
     @Test
-    void keepsExistingTopLevelUnionsAndNestedNullMembersWithTypeMappings() throws IOException {
+    void parenthesizesNullableMappingsWithoutParsingTheirTypeExpressions() throws IOException {
         // Use supported type mappings to exercise expressions, not just model aliases, at the operation boundary.
-        Map<String, Boolean> mappings = Map.of(
-                "Job | null", true, "(Job | null)", true, "(Job) | (null)", true,
-                "Array<Job | null>", false, "'null' | Job", false,
-                "(Job) & (Job | null)", false, "{ [key: string]: Job | null; }", false);
-        for (var mapping : mappings.entrySet()) {
-            String type = mapping.getKey();
+        List<String> mappings = List.of(
+                "Job | null", "(Job | null)", "(Job) | (null)", "Array<Job | null>", "'null' | Job",
+                "(Job) & (Job | null)", "{ [key: string]: Job | null; }", "() => string", "() => string | null");
+        for (String type : mappings) {
             Path output = tempDir.resolve("mapped-" + type.hashCode());
             CodegenConfigurator config = configurator("nullable-success-openapi.yaml", output);
             config.addTypeMapping("Job", type);
             config.addLanguageSpecificPrimitive(type);
             new DefaultGenerator().opts(config.toClientOptInput()).generate();
-            String expected = mapping.getValue() ? type : type + " | null";
+            String expected = "(" + type + ") | null";
             String api = Files.readString(output.resolve("api/nullable-api.ts"));
             assertJsonCall(api, "getMixed", expected, false);
             assertResource(Files.readString(output.resolve("api/nullable-resources.ts")), "getMixed", expected);
@@ -166,7 +169,7 @@ class NullableSuccessResponsesTest {
     }
 
     private static String nullableModelType(String api, String method) {
-        Matcher match = Pattern.compile(Pattern.quote(method) + "\\(\\): Observable<([A-Za-z_$][\\w$]* \\| null)>").matcher(api);
+        Matcher match = Pattern.compile(Pattern.quote(method) + "\\(\\): Observable<(\\([A-Za-z_$][\\w$]*\\) \\| null)>").matcher(api);
         assertTrue(match.find(), () -> "Expected nullable model return for " + method + ":\n" + api);
         return match.group(1);
     }

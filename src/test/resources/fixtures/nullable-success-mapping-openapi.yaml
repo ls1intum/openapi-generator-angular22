@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: Nullable custom mapping API
+  version: 1.0.0
+tags:
+  - name: mapped
+paths:
+  /callback/mixed:
+    get:
+      tags: [mapped]
+      operationId: getMixed
+      responses:
+        '200':
+          description: A custom-mapped JSON body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Callback'
+        '204':
+          description: No body
+  /callback/nullable:
+    get:
+      tags: [mapped]
+      operationId: getNullable
+      responses:
+        '200':
+          description: A nullable custom-mapped JSON body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableCallback'
+  /callback/header:
+    get:
+      tags: [mapped]
+      operationId: getHeader
+      responses:
+        '200':
+          description: No body
+        '202':
+          description: Recover the mapped JSON type for body and full-response observation
+          headers:
+            X-Callback:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Callback'
+  /callback/ordinary:
+    post:
+      tags: [mapped]
+      operationId: runNonNull
+      responses:
+        '200':
+          description: The ordinary mapped service return stays non-null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Callback'
+components:
+  schemas:
+    Callback:
+      type: object
+      properties:
+        id:
+          type: string
+    NullableCallback:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: string

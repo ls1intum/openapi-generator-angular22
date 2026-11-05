@@ -29,8 +29,25 @@ export type ServiceContracts = [
     Assert<Equal<Result<'getJsonNullWithHeaders'>, @HEADER_NULL@>>,
     Assert<Equal<Result<'getNonNull'>, Payload>>,
     Assert<Equal<Result<'getNullableItems'>, Array<string | null>>>,
-    Assert<Equal<Result<'getIntersection'>, NonNullIntersection>>
+    Assert<Equal<Result<'getIntersection'>, NonNullIntersection>>,
+    Assert<Equal<Result<'getUnconstrainedSuccess'>, Payload | null>>,
+    Assert<Equal<Result<'getUnconstrainedAllOf'>, Payload | null>>,
+    Assert<Equal<Result<'getUnconstrainedAnyOf'>, Payload | null>>,
+    Assert<Equal<Result<'getUnconstrainedOneOf'>, Payload | null>>,
+    Assert<Equal<Result<'getNullableEnum'>, Payload | null>>,
+    Assert<Equal<Result<'getExclusiveEmptyOneOf'>, Payload>>,
+    Assert<Equal<Result<'getConstrainedNullableEnum'>, Payload>>,
+    Assert<Equal<Result<'getConstrainedNullableAllOf'>, Payload>>,
+    Assert<Equal<Result<'getNonNullTypedUnion'>, Payload>>
 ];
+
+export const unconstrainedNull: Result<'getUnconstrainedSuccess'> = null;
+// @ts-expect-error An enum excluding null constrains a nullable type.
+export const enumNull: Result<'getConstrainedNullableEnum'> = null;
+// @ts-expect-error Null must satisfy exactly one branch, even before normalization deduplicates schemas.
+export const exclusiveNull: Result<'getExclusiveEmptyOneOf'> = null;
+// @ts-expect-error A non-null local type constrains a null-containing union.
+export const typedUnionNull: Result<'getNonNullTypedUnion'> = null;
 
 export const missingOneOf: Result<'getOneOf'> = null;
 export const missingAnyOf: Result<'getAnyOf'> = null;
@@ -81,7 +98,16 @@ export type ResourceContracts = [
     Assert<Equal<Value<'getJsonNullWithHeadersResource'>, null | undefined>>,
     Assert<Equal<Value<'getNonNullResource'>, Payload | undefined>>,
     Assert<Equal<Value<'getNullableItemsResource'>, Array<string | null> | undefined>>,
-    Assert<Equal<Value<'getIntersectionResource'>, NonNullIntersection | undefined>>
+    Assert<Equal<Value<'getIntersectionResource'>, NonNullIntersection | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedSuccessResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedAllOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedAnyOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedOneOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getNullableEnumResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getExclusiveEmptyOneOfResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getConstrainedNullableEnumResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getConstrainedNullableAllOfResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getNonNullTypedUnionResource'>, Payload | undefined>>
 ];
 
 export function checkedNormalizedResource(resource: ReturnType<typeof resources.getOneOfResource>): string {

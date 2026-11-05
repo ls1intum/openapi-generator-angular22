@@ -19,7 +19,13 @@ class NullableResponseTypesTest {
     private static final Path TYPESCRIPT = Path.of("src/test/typescript").toAbsolutePath();
     private static final List<Fixture> FIXTURES = List.of(
             new Fixture("nullable-success-openapi.yaml", "nullable-success-consumer.ts.template", "nullable"),
-            new Fixture("nullable-success-31-openapi.yaml", "nullable-success-31-consumer.ts.template", "normalized"));
+            new Fixture("nullable-success-31-openapi.yaml", "nullable-success-31-consumer.ts.template", "normalized"),
+            new Fixture("nullable-success-mapping-openapi.yaml", "nullable-success-mapping-consumer.ts.template", "mapped",
+                    configurator -> {
+                        configurator.addTypeMapping("Callback", "() => string")
+                                .addTypeMapping("NullableCallback", "() => string");
+                        configurator.addLanguageSpecificPrimitive("() => string");
+                    }));
 
     // Keep the general fixture harness independent. Cover its six modes plus combined inline/header observation.
     private static final Map<String, Consumer<CodegenConfigurator>> OPTION_SETS = Map.of(
@@ -47,6 +53,7 @@ class NullableResponseTypesTest {
                         .setInputSpec(Path.of("src/test/resources/fixtures").resolve(fixture.spec()).toAbsolutePath().toString())
                         .setOutputDir(output.toString());
                 mode.getValue().accept(configurator);
+                fixture.configure().accept(configurator);
                 ClientOptInput input = configurator.toClientOptInput();
                 new DefaultGenerator().opts(input).generate();
                 writeConsumer(fixture, output, input.getConfig());
@@ -75,6 +82,7 @@ class NullableResponseTypesTest {
                 .replace("@HEADER_CASE@", headers ? "HttpResponse<CaseInfo>" : "CaseInfo | null")
                 .replace("@HEADER_VOID@", headers ? "HttpResponse<void>" : "void")
                 .replace("@HEADER_NULL@", headers ? "HttpResponse<null>" : "null")
+                .replace("@HEADER_FUNCTION@", headers ? "HttpResponse<() => string>" : "(() => string) | null")
                 .replace("@HEADER_CHOICE@", headers ? "HttpResponse<Choice>" : "Choice");
         consumer = section(consumer, "RESOURCES", resources);
         consumer = section(consumer, "HEADERS", headers);
@@ -97,6 +105,9 @@ class NullableResponseTypesTest {
         return source;
     }
 
-    private record Fixture(String spec, String consumer, String tag) {
+    private record Fixture(String spec, String consumer, String tag, Consumer<CodegenConfigurator> configure) {
+        private Fixture(String spec, String consumer, String tag) {
+            this(spec, consumer, tag, configurator -> { });
+        }
     }
 }

@@ -324,6 +324,7 @@ JSON methods return `Observable<T | null>` when the OpenAPI document declares bo
 successes (for example, `200 Job` and `204`), or a nullable success body, including a single nullable `200`.
 OpenAPI 3.0 and 3.1 nullability are supported. Nullable properties, items and error responses do not make the
 successful response itself nullable; pure bodyless operations keep `Observable<void>`.
+An unconstrained JSON schema (`{}`) permits null; enum and composition constraints can exclude it.
 
 ```typescript
 getActiveJob(): Observable<Job | null>;

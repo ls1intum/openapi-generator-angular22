@@ -6,6 +6,7 @@ package de.tum.cit.aet.openapi;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import org.openapitools.codegen.CodegenOperation;
@@ -19,18 +20,45 @@ import java.util.Set;
 record ResponseTypes(String effective, String body) {
     private static final String NULLABLE = "x-nullable-json-success";
     private static final String BODY_TYPE = "x-json-success-body-type";
-    private static final String NULLABLE_UNION = "x-json-success-nullable-union";
 
     /**
-     * Called after the parent's fromOperation: normalization and inline resolution have already run. In particular,
-     * a single-model-plus-null union can now be a nullable reference, whose sibling nullable flag must be read
-     * before dereferencing. Keep this evidence on this operation, without modifying schemas or model types.
+     * ClientOptInput sets the OpenAPI before processOpts, which runs before normalization. Preserve only an
+     * operation-level boolean here: normalization can remove empty/null union branches, deduplicate oneOf branches,
+     * and replace a union with a nullable reference, losing the original intersection and exclusivity constraints.
      */
-    static void capture(OpenAPI api, Operation source, CodegenOperation op, ApiResponse selected) {
+    static void captureBeforeNormalization(OpenAPI api) {
+        if (api == null) {
+            return;
+        }
+        Set<Operation> visited = identities();
+        if (api.getPaths() != null) {
+            api.getPaths().values().forEach(path -> capturePath(api, path, visited));
+        }
+        if (api.getWebhooks() != null) {
+            api.getWebhooks().values().forEach(path -> capturePath(api, path, visited));
+        }
+    }
+
+    private static void capturePath(OpenAPI api, PathItem path, Set<Operation> visited) {
+        if (path == null) {
+            return;
+        }
+        for (Operation operation : path.readOperations()) {
+            if (!visited.add(operation)) {
+                continue;
+            }
+            operation.addExtension(NULLABLE, nullableSuccess(api, operation));
+            if (operation.getCallbacks() != null) {
+                operation.getCallbacks().values().forEach(callback ->
+                        callback.values().forEach(item -> capturePath(api, item, visited)));
+            }
+        }
+    }
+
+    private static boolean nullableSuccess(OpenAPI api, Operation source) {
         boolean bodyless = false;
         boolean nullable = false;
         boolean jsonBody = false;
-        String firstBodyCode = null;
         if (source.getResponses() != null) {
             for (var entry : source.getResponses().entrySet()) {
                 if (!entry.getKey().startsWith("2")) {
@@ -45,28 +73,28 @@ record ResponseTypes(String effective, String body) {
                 if (schema != null) {
                     jsonBody = true;
                     // Preserve null evidence from all successes, without forming a union of their DTO body types.
-                    nullable |= allowsNull(api, schema, identities());
-                    if (firstBodyCode == null || entry.getKey().compareTo(firstBodyCode) < 0) {
-                        firstBodyCode = entry.getKey();
-                    }
+                    nullable |= allowsNull(api, schema);
                 }
             }
         }
-        op.vendorExtensions.put(NULLABLE, jsonBody && (bodyless || nullable));
+        return jsonBody && (bodyless || nullable);
+    }
 
+    /** Called after the parent's fromOperation to reuse its normalized body type and imports. */
+    static void capture(OpenAPI api, Operation source, CodegenOperation op, ApiResponse selected) {
+        Object nullable = source.getExtensions() == null ? null : source.getExtensions().get(NULLABLE);
+        op.vendorExtensions.put(NULLABLE, nullable instanceof Boolean ? nullable : nullableSuccess(api, source));
         ApiResponse selectedResponse = resolveResponse(api, selected);
-        Schema<?> selectedSchema = jsonSchema(selectedResponse);
-        op.vendorExtensions.put(NULLABLE_UNION, renderedNullableUnion(api, selectedSchema, identities()));
-        if (op.returnType == null && isBodyless(selectedResponse) && firstBodyCode != null) {
+        if (op.returnType == null && isBodyless(selectedResponse) && source.getResponses() != null) {
             // The lowest success can itself be bodyless. Reuse the core's already named body type/imports.
-            String code = firstBodyCode;
+            String code = source.getResponses().entrySet().stream()
+                    .filter(entry -> entry.getKey().startsWith("2") && jsonSchema(resolveResponse(api, entry.getValue())) != null)
+                    .map(entry -> entry.getKey()).min(String::compareTo).orElse(null);
             String type = op.responses.stream()
-                    .filter(response -> code.equals(response.code)).map(response -> response.dataType)
+                    .filter(response -> response.code.equals(code)).map(response -> response.dataType)
                     .filter(value -> value != null).findFirst().orElse(null);
             if (type != null) {
                 op.vendorExtensions.put(BODY_TYPE, type);
-                op.vendorExtensions.put(NULLABLE_UNION, renderedNullableUnion(api,
-                        jsonSchema(resolveResponse(api, source.getResponses().get(code))), identities()));
             }
         }
     }
@@ -82,8 +110,7 @@ record ResponseTypes(String effective, String body) {
         }
         effective = (String) op.vendorExtensions.getOrDefault(BODY_TYPE, effective);
         String body = Boolean.TRUE.equals(op.vendorExtensions.get(NULLABLE)) && !"void".equals(effective)
-                && !Boolean.TRUE.equals(op.vendorExtensions.get(NULLABLE_UNION))
-                && !hasNullMember(effective) ? effective + " | null" : effective;
+                ? "(" + effective + ") | null" : effective;
         return new ResponseTypes(effective, body);
     }
 
@@ -112,47 +139,55 @@ record ResponseTypes(String effective, String body) {
     }
 
     /** Root evidence only: nullable properties, items and map values do not make their container nullable. */
+    static boolean allowsNull(OpenAPI api, Schema<?> schema) {
+        return allowsNull(api, schema, identities());
+    }
+
     private static boolean allowsNull(OpenAPI api, Schema<?> schema, Set<Schema<?>> active) {
         if (schema == null || !active.add(schema)) {
             return false;
         }
         try {
-            if (schema.get$ref() != null) {
-                Schema<?> target = referencedSchema(api, schema);
-                return target != null && (Boolean.TRUE.equals(schema.getNullable()) || allowsNull(api, target, active));
-            }
-            if (Boolean.TRUE.equals(schema.getNullable()) || "null".equals(schema.getType())
-                    || schema.getTypes() != null && schema.getTypes().contains("null")) {
-                return true;
-            }
-            // A non-null local type constrains the entire composition, not just its object properties.
-            if (schema.getType() != null || schema.getTypes() != null && !schema.getTypes().isEmpty()) {
+            if (Boolean.FALSE.equals(schema.getBooleanSchemaValue())
+                    || schema.getEnum() != null && schema.getEnum().stream().noneMatch(value -> value == null)
+                    || schema.getConst() != null) {
                 return false;
             }
-            if (schema.getAllOf() != null && !schema.getAllOf().isEmpty()) {
-                return schema.getAllOf().stream().allMatch(branch -> allowsNull(api, branch, active));
+            boolean nullable = Boolean.TRUE.equals(schema.getNullable());
+            boolean typeAllowsNull = schema.getTypes() != null && !schema.getTypes().isEmpty()
+                    ? schema.getTypes().contains("null") : schema.getType() == null || "null".equals(schema.getType());
+            if (!nullable && !typeAllowsNull) {
+                return false;
             }
-            if (schema.getOneOf() != null && !schema.getOneOf().isEmpty()) {
-                return schema.getOneOf().stream().filter(branch -> allowsNull(api, branch, active)).count() == 1;
+            if (schema.get$ref() != null) {
+                Schema<?> target = referencedSchema(api, schema);
+                if (target == null || !(nullable || allowsNull(api, target, active))) {
+                    return false;
+                }
             }
-            if (schema.getAnyOf() != null && !schema.getAnyOf().isEmpty()) {
-                return schema.getAnyOf().stream().anyMatch(branch -> allowsNull(api, branch, active));
+            // Retain the supported OpenAPI 3.0 nullable reference-alias convention. Actual 3.1 type/null
+            // intersections are evaluated before normalization, so synthetic nullable wrappers are unambiguous.
+            boolean nullableAlias = nullable && api.getOpenapi() != null && api.getOpenapi().startsWith("3.0.")
+                    && schema.getType() == null
+                    && (schema.getTypes() == null || schema.getTypes().isEmpty())
+                    && schema.getAllOf() != null && schema.getAllOf().size() == 1
+                    && schema.getAllOf().getFirst().get$ref() != null
+                    && referencedSchema(api, schema.getAllOf().getFirst()) != null;
+            if (schema.getAllOf() != null && !nullableAlias
+                    && !schema.getAllOf().stream().allMatch(branch -> allowsNull(api, branch, active))) {
+                return false;
             }
-            return schema.getEnum() != null && schema.getEnum().contains(null);
+            if (schema.getOneOf() != null
+                    && schema.getOneOf().stream().filter(branch -> allowsNull(api, branch, active)).count() != 1) {
+                return false;
+            }
+            if (schema.getAnyOf() != null && schema.getAnyOf().stream().noneMatch(branch -> allowsNull(api, branch, active))) {
+                return false;
+            }
+            return schema.getNot() == null || !allowsNull(api, schema.getNot(), active);
         } finally {
             active.remove(schema);
         }
-    }
-
-    /** The existing oneOf model renderer already includes null in these aliases. Single-model copies do not. */
-    private static boolean renderedNullableUnion(OpenAPI api, Schema<?> schema, Set<Schema<?>> active) {
-        if (schema == null || !active.add(schema)) {
-            return false;
-        }
-        if (schema.get$ref() != null) {
-            return renderedNullableUnion(api, referencedSchema(api, schema), active);
-        }
-        return schema.getOneOf() != null && schema.getOneOf().size() > 1 && Boolean.TRUE.equals(schema.getNullable());
     }
 
     private static Schema<?> referencedSchema(OpenAPI api, Schema<?> schema) {
@@ -167,48 +202,5 @@ record ResponseTypes(String effective, String body) {
 
     private static <T> Set<T> identities() {
         return Collections.newSetFromMap(new IdentityHashMap<>());
-    }
-
-    /**
-     * Schema metadata decides nullability and identifies nullable model aliases above. Custom type mappings are
-     * opaque TypeScript expressions, so this small delimiter/quote scan only avoids appending a duplicate top-level
-     * null member. It does not infer response nullability from text or mistake Array<Item | null> for a nullable root.
-     */
-    private static boolean hasNullMember(String type) {
-        String expression = type.trim();
-        if ("null".equals(expression)) {
-            return true;
-        }
-        int depth = 0;
-        char quote = 0;
-        boolean parenthesized = expression.startsWith("(");
-        for (int i = 0; i < expression.length(); i++) {
-            char ch = expression.charAt(i);
-            if (quote != 0) {
-                if (ch == '\\') {
-                    i++;
-                } else if (ch == quote) {
-                    quote = 0;
-                }
-                continue;
-            }
-            switch (ch) {
-                case '\'', '"', '`' -> quote = ch;
-                case '(', '[', '{', '<' -> depth++;
-                case ')', ']', '}', '>' -> {
-                    depth--;
-                    if (depth == 0 && i < expression.length() - 1) {
-                        parenthesized = false;
-                    }
-                }
-                case '|' -> {
-                    if (depth == 0) {
-                        return hasNullMember(expression.substring(0, i)) || hasNullMember(expression.substring(i + 1));
-                    }
-                }
-                default -> { }
-            }
-        }
-        return parenthesized && expression.endsWith(")") && hasNullMember(expression.substring(1, expression.length() - 1));
     }
 }

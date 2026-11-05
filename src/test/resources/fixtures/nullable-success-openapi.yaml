@@ -256,7 +256,7 @@ paths:
         '200':
           $ref: '#/components/responses/PayloadBody'
         '201':
-          description: An unconstrained JSON schema is not missing content
+          description: Unconstrained JSON content permits null without being bodyless
           content:
             application/json:
               schema: {}
