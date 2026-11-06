@@ -9,6 +9,7 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Encoding;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.*;
 import org.openapitools.codegen.languages.TypeScriptAngularClientCodegen;
@@ -591,6 +592,16 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
                 schema -> "Blob".equals(fromProperty("response", unaliasSchema(schema), false).dataType));
         CodegenOperation result = super.fromOperation(path, httpMethod, operation, servers);
         ResponseTypes.capture(openAPI, operation, result);
+        if (TypeScriptSnippets.isUrlEncodedForm(result)) {
+            RequestBody body = ModelUtils.getReferencedRequestBody(openAPI, operation.getRequestBody());
+            // Upstream lowercases the key before lookup, losing entries such as charset=UTF-8.
+            MediaType mediaType = body.getContent().get(getContentType(body));
+            Map<String, Encoding> encodings = mediaType.getEncoding();
+            for (CodegenParameter parameter : result.formParams) {
+                Encoding encoding = encodings == null ? null : encodings.get(parameter.baseName);
+                parameter.vendorExtensions.put("x-query-style-args", TypeScriptSnippets.formStyleArguments(encoding));
+            }
+        }
         return result;
     }
 
@@ -653,15 +664,6 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         result.put("resourceTsImports", toTsImports(getOperations));
 
         return result;
-    }
-
-    /** Retains the encoding's explode setting, which upstream resets for non-container fields. */
-    @Override
-    public void setParameterEncodingValues(CodegenParameter parameter, MediaType mediaType) {
-        super.setParameterEncodingValues(parameter, mediaType);
-        Encoding encoding = mediaType == null || mediaType.getEncoding() == null
-                ? null : mediaType.getEncoding().get(parameter.baseName);
-        parameter.vendorExtensions.put("x-query-style-args", TypeScriptSnippets.formStyleArguments(encoding));
     }
 
     private List<Map<String, String>> toTsImports(List<CodegenOperation> ops) {

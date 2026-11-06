@@ -6,6 +6,8 @@ import java.nio.file.Files;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openapitools.codegen.DefaultGenerator;
 import org.openapitools.codegen.config.CodegenConfigurator;
 
@@ -27,10 +29,15 @@ class UrlEncodedFormTest {
         generateAndCheck(spec, true);
     }
 
-    @Test
-    void preservesEncodingsWithMediaTypeParameters() throws IOException, InterruptedException {
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "application/x-www-form-urlencoded; charset=utf-8",
+            "application/x-www-form-urlencoded; charset=UTF-8",
+            "Application/X-Www-Form-Urlencoded; Charset=UTF-8"
+    })
+    void preservesEncodingsWithMediaTypeParameters(String mediaType) throws IOException, InterruptedException {
         String spec = Files.readString(Path.of("src/test/resources/fixtures/url-encoded-form-openapi.yaml"))
-                .replace("application/x-www-form-urlencoded:", "application/x-www-form-urlencoded; charset=utf-8:");
+                .replace("application/x-www-form-urlencoded:", mediaType + ":");
         generateAndCheck(spec, false);
     }
 
