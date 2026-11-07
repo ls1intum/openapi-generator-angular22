@@ -581,8 +581,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     @Override
     public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
         CodegenOperation result = super.fromOperation(path, httpMethod, operation, servers);
-        ResponseTypes.capture(openAPI, operation, result,
-                operation.getResponses() == null ? null : findMethodResponse(operation.getResponses()));
+        ResponseTypes.capture(openAPI, operation, result);
         return result;
     }
 

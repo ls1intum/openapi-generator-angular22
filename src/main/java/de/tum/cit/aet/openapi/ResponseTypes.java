@@ -7,6 +7,7 @@ package de.tum.cit.aet.openapi;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
+import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
@@ -14,18 +15,26 @@ import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.utils.ModelUtils;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 
 /** The effective response type and its nullable JSON body-mode type, shared by services and resources. */
 record ResponseTypes(String effective, String body) {
     private static final String NULLABLE = "x-nullable-json-success";
+    private static final String BODYLESS = "x-bodyless-success";
     private static final String BODY_TYPE = "x-json-success-body-type";
+    private static final String UNKNOWN = "unknown";
 
     /**
-     * ClientOptInput sets the OpenAPI before processOpts, which runs before normalization. Preserve only an
-     * operation-level boolean here: normalization can remove empty/null union branches, deduplicate oneOf branches,
-     * and replace a union with a nullable reference, losing the original intersection and exclusivity constraints.
+     * ClientOptInput sets the OpenAPI before processOpts, which runs before normalization. Puts the JSON media types of
+     * each success first and preserves an operation-level boolean: normalization can remove empty/null union branches,
+     * deduplicate oneOf branches, and replace a union with a nullable reference, losing the original intersection and
+     * exclusivity constraints.
      */
     static void captureBeforeNormalization(OpenAPI api) {
         if (api == null) {
@@ -48,7 +57,8 @@ record ResponseTypes(String effective, String body) {
             if (!visited.add(operation)) {
                 continue;
             }
-            operation.addExtension(NULLABLE, nullableSuccess(api, operation));
+            successes(api, operation).values().forEach(response -> preferJsonContent(response.getContent()));
+            operation.addExtension(NULLABLE, nullableJsonSuccess(api, operation));
             if (operation.getCallbacks() != null) {
                 operation.getCallbacks().values().forEach(callback ->
                         callback.values().forEach(item -> capturePath(api, item, visited)));
@@ -56,59 +66,107 @@ record ResponseTypes(String effective, String body) {
         }
     }
 
-    private static boolean nullableSuccess(OpenAPI api, Operation source) {
-        boolean bodyless = false;
-        boolean nullable = false;
-        boolean jsonBody = false;
-        if (source.getResponses() != null) {
-            for (var entry : source.getResponses().entrySet()) {
-                if (!entry.getKey().startsWith("2")) {
-                    continue;
-                }
-                ApiResponse response = resolveResponse(api, entry.getValue());
-                if (response == null) {
-                    continue;
-                }
-                bodyless |= isBodyless(response);
-                MediaType json = jsonContent(response);
-                if (json != null) {
-                    jsonBody = true;
-                    // Preserve null evidence from all successes, without forming a union of their DTO body types.
-                    // An omitted schema leaves JSON content unconstrained, including the value null.
-                    nullable |= json.getSchema() == null || allowsNull(api, json.getSchema());
-                }
-            }
+    /**
+     * The documented successes in the core's selection order, so the first is the response it types the method from:
+     * the 2xx responses by code or, without any, the default response.
+     */
+    private static Map<String, ApiResponse> successes(OpenAPI api, Operation source) {
+        Map<String, ApiResponse> successes = new TreeMap<>();
+        if (source.getResponses() == null) {
+            return successes;
         }
-        return jsonBody && (bodyless || nullable);
+        source.getResponses().forEach((code, response) -> {
+            ApiResponse resolved = code.startsWith("2") ? resolveResponse(api, response) : null;
+            if (resolved != null) {
+                successes.put(code, resolved);
+            }
+        });
+        ApiResponse fallback = resolveResponse(api, source.getResponses().get("default"));
+        if (successes.isEmpty() && fallback != null) {
+            successes.put("default", fallback);
+        }
+        return successes;
+    }
+
+    /**
+     * Moves the media types a JSON call can read to the front, because the core types a response from its first entry.
+     * The generated call parses JSON and Angular's default Accept header prefers it, so the type must not depend on
+     * declaration order. A binary first entry stays: it selects the Blob overload rather than a JSON call.
+     */
+    private static void preferJsonContent(Content content) {
+        if (content == null || content.size() < 2 || isBinary(content.values().iterator().next().getSchema())) {
+            return;
+        }
+        Map<String, MediaType> declared = new LinkedHashMap<>(content);
+        content.clear();
+        // A stable sort: exact JSON media types, then ranges that include JSON, then everything else.
+        declared.keySet().stream().sorted(Comparator.comparingInt(ResponseTypes::jsonPreference))
+                .forEach(mediaType -> content.put(mediaType, declared.get(mediaType)));
+    }
+
+    private static int jsonPreference(String mediaType) {
+        if (TypeScriptSnippets.jsonMediaType(mediaType) != null) {
+            return 0;
+        }
+        return TypeScriptSnippets.acceptsJson(mediaType) ? 1 : 2;
+    }
+
+    private static boolean isBinary(Schema<?> schema) {
+        return schema != null && (ModelUtils.isBinarySchema(schema) || ModelUtils.isFileSchema(schema));
+    }
+
+    /** Null evidence from every readable body of every success, without forming a union of their DTO body types. */
+    private static boolean nullableJsonSuccess(OpenAPI api, Operation source) {
+        return successes(api, source).values().stream()
+                .filter(response -> !isBodyless(response))
+                .flatMap(response -> response.getContent().entrySet().stream())
+                .filter(entry -> TypeScriptSnippets.acceptsJson(entry.getKey()))
+                // An omitted schema leaves JSON content unconstrained, including the value null.
+                .anyMatch(entry -> entry.getValue().getSchema() == null || allowsNull(api, entry.getValue().getSchema()));
     }
 
     /** Called after the parent's fromOperation to reuse its normalized body type and imports. */
-    static void capture(OpenAPI api, Operation source, CodegenOperation op, ApiResponse selected) {
+    static void capture(OpenAPI api, Operation source, CodegenOperation op) {
+        Map<String, ApiResponse> successes = successes(api, source);
         Object nullable = source.getExtensions() == null ? null : source.getExtensions().get(NULLABLE);
-        op.vendorExtensions.put(NULLABLE, nullable instanceof Boolean ? nullable : nullableSuccess(api, source));
-        ApiResponse selectedResponse = resolveResponse(api, selected);
-        if (op.returnType == null && isBodyless(selectedResponse) && source.getResponses() != null) {
-            // The lowest success can itself be bodyless. Reuse the core's already named body type/imports.
-            String code = source.getResponses().entrySet().stream()
-                    .filter(entry -> entry.getKey().startsWith("2") && jsonSchema(resolveResponse(api, entry.getValue())) != null)
-                    .map(entry -> entry.getKey()).min(String::compareTo).orElse(null);
-            String type = op.responses.stream()
-                    .filter(response -> response.code.equals(code)).map(response -> response.dataType)
-                    .filter(value -> value != null).findFirst().orElse(null);
+        op.vendorExtensions.put(NULLABLE, nullable instanceof Boolean ? nullable : nullableJsonSuccess(api, source));
+        op.vendorExtensions.put(BODYLESS, successes.values().stream().anyMatch(ResponseTypes::isBodyless));
+        if (op.returnType == null) {
+            String type = recoveredBodyType(successes, op);
             if (type != null) {
                 op.vendorExtensions.put(BODY_TYPE, type);
-            } else if (source.getResponses().entrySet().stream()
-                    .filter(entry -> entry.getKey().startsWith("2"))
-                    .map(entry -> jsonContent(resolveResponse(api, entry.getValue())))
-                    .anyMatch(json -> json != null && json.getSchema() == null)) {
-                // No concrete body was recovered, but documented JSON content is still a body, not void.
-                op.vendorExtensions.put(BODY_TYPE, "unknown");
             }
         }
     }
 
+    /**
+     * The body type of a JSON call when the core selected a response without a type. A selected body without a schema
+     * may hold any JSON value. A selected bodyless response defers to the lowest success with a type, then to a
+     * success without a schema. Returns null when no success documents a body the call can read.
+     */
+    private static String recoveredBodyType(Map<String, ApiResponse> successes, CodegenOperation op) {
+        if (successes.isEmpty()) {
+            return null;
+        }
+        if (hasNoSchema(successes.values().iterator().next())) {
+            return UNKNOWN;
+        }
+        return successes.entrySet().stream()
+                .filter(entry -> jsonContent(entry.getValue()) != null && jsonContent(entry.getValue()).getSchema() != null)
+                .flatMap(entry -> op.responses.stream().filter(response -> response.code.equals(entry.getKey())))
+                .map(response -> response.dataType)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(successes.values().stream().anyMatch(ResponseTypes::hasNoSchema) ? UNKNOWN : null);
+    }
+
     private static boolean isBodyless(ApiResponse response) {
-        return response != null && (response.getContent() == null || response.getContent().isEmpty());
+        return response.getContent() == null || response.getContent().isEmpty();
+    }
+
+    private static boolean hasNoSchema(ApiResponse response) {
+        MediaType json = jsonContent(response);
+        return json != null && json.getSchema() == null;
     }
 
     static ResponseTypes of(CodegenOperation op, TypeScriptSnippets.ResponseKind kind, String fallback) {
@@ -117,24 +175,21 @@ record ResponseTypes(String effective, String body) {
             return new ResponseTypes(effective, effective);
         }
         effective = (String) op.vendorExtensions.getOrDefault(BODY_TYPE, effective);
-        String body = Boolean.TRUE.equals(op.vendorExtensions.get(NULLABLE))
-                && !"void".equals(effective) && !"unknown".equals(effective)
+        // A JSON call yields null for an empty response whatever media type the other successes declare.
+        boolean nullable = Boolean.TRUE.equals(op.vendorExtensions.get(NULLABLE))
+                || Boolean.TRUE.equals(op.vendorExtensions.get(BODYLESS));
+        String body = nullable && !"void".equals(effective) && !UNKNOWN.equals(effective)
                 ? "(" + effective + ") | null" : effective;
         return new ResponseTypes(effective, body);
     }
 
-    private static Schema<?> jsonSchema(ApiResponse response) {
-        MediaType json = jsonContent(response);
-        return json == null ? null : json.getSchema();
-    }
-
+    /** The entry the core types this response from, when a JSON call can read it. */
     private static MediaType jsonContent(ApiResponse response) {
-        if (response == null || response.getContent() == null || response.getContent().isEmpty()) {
+        if (isBodyless(response)) {
             return null;
         }
-        // Match the core's first-content selection; do not change text/binary overload selection.
         var entry = response.getContent().entrySet().iterator().next();
-        return TypeScriptSnippets.jsonMediaType(entry.getKey()) != null ? entry.getValue() : null;
+        return TypeScriptSnippets.acceptsJson(entry.getKey()) ? entry.getValue() : null;
     }
 
     private static ApiResponse resolveResponse(OpenAPI api, ApiResponse response) {

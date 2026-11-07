@@ -53,6 +53,11 @@ class NullableSuccessResponsesTest {
                     "getOmittedSchemaBeforeBody", "(Payload) | null", "getOmittedSchemaError", "Payload"));
             types.put("getUnknownSuccess", "unknown");
             types.put("getUnknownSuccessReversed", "unknown");
+            types.put("getOmittedSchemaSelected", "unknown");
+            types.put("getOmittedSchemaAlone", "unknown");
+            types.put("getWildcardBeforeEmpty", "(Payload) | null");
+            types.put("getLaterTextFirst", "(Payload) | null");
+            types.put("getLaterJsonFirst", "(Payload) | null");
             // The inline resolver may reuse an equivalent model. The strict consumer also checks its exact shape.
             types.put("getNullableInline", nullableModelType(api, "getNullableInline"));
             for (var entry : types.entrySet()) {
@@ -155,6 +160,48 @@ class NullableSuccessResponsesTest {
             assertFalse(api.contains("from '../model/null'"));
             assertFalse(resources.contains("from '../model/null'"));
             contains(Files.readString(output.resolve("model/choice.ts")), "export type Choice = Payload | OtherPayload | null;");
+        }
+    }
+
+    @Test
+    void appliesOneSelectionRuleAcrossMediaTypesAndSchemalessBodies() throws IOException {
+        Map<String, String> types = new LinkedHashMap<>();
+        for (String operation : List.of("getOmittedBeforeBody", "getOmittedAlone", "getOmittedBeforeEmpty",
+                "getOmittedRange", "getDefaultOmitted")) {
+            types.put(operation, "unknown");
+        }
+        for (String operation : List.of("getRangeBeforeEmpty", "getApplicationRangeBeforeEmpty", "getRangeNullable",
+                "getRangeAfterEmpty", "getXmlBeforeEmpty", "getLaterTextFirst", "getLaterJsonFirst",
+                "getRecoveredTextFirst", "getDefaultNullable")) {
+            types.put(operation, "(Payload) | null");
+        }
+        for (String operation : List.of("getSelectedTextFirst", "getSelectedJsonFirst", "getSelectedRangeFirst",
+                "getDefaultError", "getLaterTextWithoutSchema", "getLaterXmlNullable", "getNullableErrorRange")) {
+            types.put(operation, "Payload");
+        }
+        types.put("getSelectedTextFirstBeforeEmpty", "(Other) | null");
+        types.put("getSelectedJsonFirstBeforeEmpty", "(Other) | null");
+        List<Map<String, Object>> modes = List.of(Map.of(), Map.of("separateResources", "false"),
+                Map.of("observeResponseHeaders", "true"));
+        for (int i = 0; i < modes.size(); i++) {
+            Map<String, Object> options = modes.get(i);
+            boolean headers = "true".equals(options.get("observeResponseHeaders"));
+            Path output = generate("nullable-success-media-openapi.yaml", "media-" + i, options);
+            String api = Files.readString(output.resolve("api/media-api.ts"));
+            String resources = "false".equals(options.get("separateResources")) ? api
+                    : Files.readString(output.resolve("api/media-resources.ts"));
+            for (var entry : types.entrySet()) {
+                assertJsonCall(api, entry.getKey(), entry.getValue(), false);
+                assertResource(resources, entry.getKey(), entry.getValue());
+            }
+            assertJsonCall(api, "getOmittedWithHeaders", "unknown", headers);
+            assertResource(resources, "getOmittedWithHeaders", "unknown");
+            contains(api, "getBinaryFirst(): Observable<HttpResponse<Blob>>");
+            contains(body(api, "getBinaryFirst()", "\n    }"), "{ responseType: 'blob', observe: 'response' }");
+            contains(resources, "getBinaryFirstResource(): HttpResourceRef<Blob | undefined>");
+            contains(api, "getTextOnlyBeforeEmpty(): Observable<string>");
+            contains(body(api, "getTextOnlyBeforeEmpty()", "\n    }"), "{ responseType: 'text' }");
+            contains(resources, "getTextOnlyBeforeEmptyResource(): HttpResourceRef<string | undefined>");
         }
     }
 

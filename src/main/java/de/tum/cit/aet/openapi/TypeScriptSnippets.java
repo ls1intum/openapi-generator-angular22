@@ -31,6 +31,7 @@ final class TypeScriptSnippets {
     private static final Set<String> TS_SCALAR_TYPES = Set.of("string", "number", "boolean");
     private static final Set<String> QUERY_STYLES = Set.of("form", "spaceDelimited", "pipeDelimited", "deepObject");
     private static final Pattern JSON_MEDIA_TYPE = Pattern.compile("(?i)application/([^;]+\\+)?json(\\s*;.*)?");
+    private static final Pattern JSON_MEDIA_RANGE = Pattern.compile("(?i)(\\*|application)/\\*(\\s*;.*)?");
     /** An ASCII identifier, which TypeScript accepts as a property name without quotes. */
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_$][A-Za-z0-9_$]*");
 
@@ -406,6 +407,18 @@ final class TypeScriptSnippets {
         }
         return Arrays.stream(contentType.split(",")).map(String::strip).filter(type -> JSON_MEDIA_TYPE.matcher(type).matches())
                 .findFirst().orElse(null);
+    }
+
+    /**
+     * Whether a response declared with this content type can carry JSON: a JSON media type, or a range that includes
+     * one, such as {@code *}{@code /*}.
+     *
+     * @param contentType the declared content type
+     * @return {@code true} if a call that parses JSON can read such a response
+     */
+    static boolean acceptsJson(String contentType) {
+        return jsonMediaType(contentType) != null
+                || Arrays.stream(contentType.split(",")).map(String::strip).anyMatch(type -> JSON_MEDIA_RANGE.matcher(type).matches());
     }
 
     private static boolean isBinaryType(String dataType) {

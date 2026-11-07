@@ -20,6 +20,7 @@ class NullableResponseTypesTest {
     private static final List<Fixture> FIXTURES = List.of(
             new Fixture("nullable-success-openapi.yaml", "nullable-success-consumer.ts.template", "nullable"),
             new Fixture("nullable-success-31-openapi.yaml", "nullable-success-31-consumer.ts.template", "normalized"),
+            new Fixture("nullable-success-media-openapi.yaml", "nullable-success-media-consumer.ts.template", "media"),
             new Fixture("nullable-success-mapping-openapi.yaml", "nullable-success-mapping-consumer.ts.template", "mapped",
                     configurator -> {
                         configurator.addTypeMapping("Callback", "() => string")

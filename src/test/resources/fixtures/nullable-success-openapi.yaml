@@ -489,6 +489,67 @@ paths:
           description: No body
         '201':
           $ref: '#/components/responses/OmittedJsonBodyWithHeaders'
+  /payload/omitted-schema-selected:
+    get:
+      tags: [nullable]
+      operationId: getOmittedSchemaSelected
+      responses:
+        '200':
+          $ref: '#/components/responses/OmittedJsonBody'
+        '201':
+          $ref: '#/components/responses/PayloadBody'
+  /payload/omitted-schema-alone:
+    get:
+      tags: [nullable]
+      operationId: getOmittedSchemaAlone
+      responses:
+        '200':
+          $ref: '#/components/responses/OmittedJsonBody'
+  /payload/wildcard-before-empty:
+    get:
+      tags: [nullable]
+      operationId: getWildcardBeforeEmpty
+      responses:
+        '200':
+          description: Any media type
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Payload'
+        '204':
+          description: No body
+  /payload/later-text-first:
+    get:
+      tags: [nullable]
+      operationId: getLaterTextFirst
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Text first
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableReference'
+  /payload/later-json-first:
+    get:
+      tags: [nullable]
+      operationId: getLaterJsonFirst
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: JSON first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NullableReference'
+            text/plain:
+              schema:
+                type: string
   /payload/bodyless-only:
     post:
       tags: [nullable]

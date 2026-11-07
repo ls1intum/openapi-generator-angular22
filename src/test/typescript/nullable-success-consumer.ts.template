@@ -31,6 +31,11 @@ export function checkedOmittedSchema(value: Result<'getOmittedSchema'>): string 
 }
 
 export type ServiceContracts = [
+    Assert<Equal<Result<'getOmittedSchemaSelected'>, unknown>>,
+    Assert<Equal<Result<'getOmittedSchemaAlone'>, unknown>>,
+    Assert<Equal<Result<'getWildcardBeforeEmpty'>, Payload | null>>,
+    Assert<Equal<Result<'getLaterTextFirst'>, Payload | null>>,
+    Assert<Equal<Result<'getLaterJsonFirst'>, Payload | null>>,
     Assert<Equal<Result<'getUnknownSuccess'>, unknown>>,
     Assert<Equal<Result<'getUnknownSuccessReversed'>, unknown>>,
     Assert<Equal<Result<'getHeaderUnknownSuccess'>, @HEADER_UNKNOWN@>>,
@@ -146,6 +151,11 @@ import * as resources from '@RESOURCE_MODULE@';
 
 type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
 export type ResourceContracts = [
+    Assert<Equal<Value<'getOmittedSchemaSelectedResource'>, unknown>>,
+    Assert<Equal<Value<'getOmittedSchemaAloneResource'>, unknown>>,
+    Assert<Equal<Value<'getWildcardBeforeEmptyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getLaterTextFirstResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getLaterJsonFirstResource'>, Payload | null | undefined>>,
     Assert<Equal<Value<'getUnknownSuccessResource'>, unknown>>,
     Assert<Equal<ReturnType<typeof resources.getUnknownSuccessResource>, HttpResourceRef<unknown>>>,
     Assert<Equal<Value<'getUnknownSuccessReversedResource'>, unknown>>,
