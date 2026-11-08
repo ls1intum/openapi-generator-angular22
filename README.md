@@ -367,8 +367,8 @@ this.textUnitApi.updateTextUnit(lectureId, textUnit, { context: skipAlert });
 ```
 
 `context` reaches the interceptors unchanged. A header parameter the operation declares overrides a caller header of the
-same name, and the operation's `responseType` and `observe` stay as generated. An httpResource function takes no
-options; it builds its request from its arguments alone.
+same name, ignoring case. Only `context` and `headers` are forwarded; the operation's `responseType` and `observe` stay
+as generated. An httpResource function takes no options; it builds its request from its arguments alone.
 
 An array with `uniqueItems: true` is typed `Array<T>`, not `Set<T>`. JSON has no sets: a response arrives as an
 array, and `JSON.stringify`, which Angular uses for request bodies, sends a `Set` as `{}`. A `typeMappings` entry

@@ -41,6 +41,16 @@ assert.deepEqual(
     'a declared header parameter wins over a caller header of the same name, other caller headers stay',
 );
 
+api.getRepository(1, 'Bearer declared', undefined, undefined, {
+    headers: { Authorization: 'Bearer first', authorization: 'Bearer caller' },
+});
+const normalized = new Map(Object.entries(lastOptions().headers).map(([key, value]) => [key.toLowerCase(), value]));
+assert.equal(normalized.get('authorization'), 'Bearer declared', 'declared headers win regardless of caller key casing');
+
+api.getExercise(1, { context, observe: 'response', responseType: 'text' });
+assert.equal(lastOptions().observe, undefined, 'unsupported options cannot change the response mode');
+assert.equal(lastOptions().responseType, undefined, 'unsupported options cannot change response parsing');
+
 api.submitRepositoryFeedback(1, 'Bearer declared', { text: 'ok' }, { context });
 assert.deepEqual(calls.at(-1).args[1], { text: 'ok' }, 'the body stays the second argument');
 assert.equal(lastOptions().context, context);

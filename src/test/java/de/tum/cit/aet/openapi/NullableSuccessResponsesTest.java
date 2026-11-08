@@ -71,23 +71,23 @@ class NullableSuccessResponsesTest {
             assertJsonCall(api, "getHeaderNullable", headers ? "CaseInfo" : "(CaseInfo) | null", headers);
             assertJsonCall(api, "getHeaderOmittedSchema", headers ? "Payload" : "(Payload) | null", headers);
             assertJsonCall(api, "getHeaderUnknownSuccess", "unknown", headers);
-            contains(api, "sendBodylessOnly(): Observable<void>");
-            contains(body(api, "sendBodylessOnly(): Observable<void>", "\n    }"),
-                    "return this.http.post<void>(url, null);");
-            contains(api, "sendNullableRequest(body?: number): Observable<Payload>");
-            contains(api, "return this.http.post<Payload>(url, body);");
-            contains(api, "deleteEmpty(): Observable<void>");
-            contains(api, "return this.http.delete<void>(url);");
-            contains(api, "sendEmpty(): Observable<void>");
-            contains(api, "return this.http.post<void>(url, null);");
-            contains(api, headers ? "deleteWithHeaders(): Observable<HttpResponse<void>>"
-                    : "deleteWithHeaders(): Observable<void>");
-            contains(api, "getBinary(): Observable<HttpResponse<Blob>>");
-            contains(api, "return this.http.get(url, { responseType: 'blob', observe: 'response' });");
-            contains(api, "getNullableBinaryFirst(): Observable<Blob>");
-            contains(body(api, "getNullableBinaryFirst()", "\n    }"), "{ responseType: 'blob' }");
-            contains(api, "getText(): Observable<string>");
-            contains(api, "return this.http.get(url, { responseType: 'text' });");
+            contains(api, "sendBodylessOnly(options?: import('./request-options').RequestOptions): Observable<void>");
+            contains(body(api, "sendBodylessOnly(options?: import('./request-options').RequestOptions): Observable<void>", "\n    }"),
+                    "return this.http.post<void>(url, null, options && { context: options.context, headers: options.headers });");
+            contains(api, "sendNullableRequest(body?: number, options?: import('./request-options').RequestOptions): Observable<Payload>");
+            contains(api, "return this.http.post<Payload>(url, body, options && { context: options.context, headers: options.headers });");
+            contains(api, "deleteEmpty(options?: import('./request-options').RequestOptions): Observable<void>");
+            contains(api, "return this.http.delete<void>(url, options && { context: options.context, headers: options.headers });");
+            contains(api, "sendEmpty(options?: import('./request-options').RequestOptions): Observable<void>");
+            contains(api, "return this.http.post<void>(url, null, options && { context: options.context, headers: options.headers });");
+            contains(api, headers ? "deleteWithHeaders(options?: import('./request-options').RequestOptions): Observable<HttpResponse<void>>"
+                    : "deleteWithHeaders(options?: import('./request-options').RequestOptions): Observable<void>");
+            contains(api, "getBinary(options?: import('./request-options').RequestOptions): Observable<HttpResponse<Blob>>");
+            contains(api, "return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), responseType: 'blob', observe: 'response' });");
+            contains(api, "getNullableBinaryFirst(options?: import('./request-options').RequestOptions): Observable<Blob>");
+            contains(body(api, "getNullableBinaryFirst(options?: import('./request-options').RequestOptions)", "\n    }"), "{ ...(options && { context: options.context, headers: options.headers }), responseType: 'blob' }");
+            contains(api, "getText(options?: import('./request-options').RequestOptions): Observable<string>");
+            contains(api, "return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), responseType: 'text' });");
             assertFalse(api.contains("void | null"));
 
             if ("false".equals(options.get("useHttpResource"))) {
@@ -156,9 +156,9 @@ class NullableSuccessResponsesTest {
             assertResource(resources, "getHeaderOmittedSchema", "(Payload) | null");
             assertJsonCall(api, "getHeaderUnknownSuccess", "unknown", headers);
             assertResource(resources, "getHeaderUnknownSuccess", "unknown");
-            contains(api, "sendBodylessOnly(): Observable<void>");
-            contains(body(api, "sendBodylessOnly(): Observable<void>", "\n    }"),
-                    "return this.http.post<void>(url, null);");
+            contains(api, "sendBodylessOnly(options?: import('./request-options').RequestOptions): Observable<void>");
+            contains(body(api, "sendBodylessOnly(options?: import('./request-options').RequestOptions): Observable<void>", "\n    }"),
+                    "return this.http.post<void>(url, null, options && { context: options.context, headers: options.headers });");
             assertFalse(api.contains("from '../model/null'"));
             assertFalse(resources.contains("from '../model/null'"));
             contains(Files.readString(output.resolve("model/choice.ts")), "export type Choice = Payload | OtherPayload | null;");
@@ -200,27 +200,27 @@ class NullableSuccessResponsesTest {
             assertResource(resources, "getOmittedWithHeaders", "unknown");
             // A binary first entry keeps the Blob overload, also behind a reference or a chain of references.
             for (String operation : List.of("getBinaryFirst", "getReferencedBinaryFirst", "getAliasedBinaryFirst")) {
-                contains(api, operation + "(): Observable<HttpResponse<Blob>>");
-                contains(body(api, operation + "()", "\n    }"), "{ responseType: 'blob', observe: 'response' }");
+                contains(api, operation + "(options?: import('./request-options').RequestOptions): Observable<HttpResponse<Blob>>");
+                contains(body(api, operation + "(options?: import('./request-options').RequestOptions)", "\n    }"), "{ ...(options && { context: options.context, headers: options.headers }), responseType: 'blob', observe: 'response' }");
                 contains(resources, operation + "Resource(): HttpResourceRef<Blob | undefined>");
             }
             // Also behind a nullable composition, which the core types as a Blob only after normalization.
             for (String operation : List.of("getNullableBinaryFirst", "getNullableOneOfBinaryFirst")) {
-                contains(api, operation + "(): Observable<Blob>");
-                contains(body(api, operation + "()", "\n    }"), "{ responseType: 'blob' }");
+                contains(api, operation + "(options?: import('./request-options').RequestOptions): Observable<Blob>");
+                contains(body(api, operation + "(options?: import('./request-options').RequestOptions)", "\n    }"), "{ ...(options && { context: options.context, headers: options.headers }), responseType: 'blob' }");
                 contains(resources, operation + "Resource(): HttpResourceRef<Blob | undefined>");
             }
             // A binary schema under a media range is a file: it neither moves before a text entry nor becomes the
             // body type of a JSON call.
-            contains(api, "getTextBeforeWildcardBinary(): Observable<string>");
-            contains(body(api, "getTextBeforeWildcardBinary()", "\n    }"), "return this.http.get<string>(url);");
+            contains(api, "getTextBeforeWildcardBinary(options?: import('./request-options').RequestOptions): Observable<string>");
+            contains(body(api, "getTextBeforeWildcardBinary(options?: import('./request-options').RequestOptions)", "\n    }"), "return this.http.get<string>(url, options && { context: options.context, headers: options.headers });");
             contains(resources, "getTextBeforeWildcardBinaryResource(): HttpResourceRef<string | undefined>");
-            contains(api, "getEmptyBeforeWildcardBinary(): Observable<HttpResponse<void>>");
-            contains(body(api, "getEmptyBeforeWildcardBinary()", "\n    }"),
-                    "return this.http.get<void>(url, { observe: 'response' });");
+            contains(api, "getEmptyBeforeWildcardBinary(options?: import('./request-options').RequestOptions): Observable<HttpResponse<void>>");
+            contains(body(api, "getEmptyBeforeWildcardBinary(options?: import('./request-options').RequestOptions)", "\n    }"),
+                    "return this.http.get<void>(url, { ...(options && { context: options.context, headers: options.headers }), observe: 'response' });");
             contains(resources, "getEmptyBeforeWildcardBinaryResource(): HttpResourceRef<unknown | undefined>");
-            contains(api, "getTextOnlyBeforeEmpty(): Observable<string>");
-            contains(body(api, "getTextOnlyBeforeEmpty()", "\n    }"), "{ responseType: 'text' }");
+            contains(api, "getTextOnlyBeforeEmpty(options?: import('./request-options').RequestOptions): Observable<string>");
+            contains(body(api, "getTextOnlyBeforeEmpty(options?: import('./request-options').RequestOptions)", "\n    }"), "{ ...(options && { context: options.context, headers: options.headers }), responseType: 'text' }");
             contains(resources, "getTextOnlyBeforeEmptyResource(): HttpResourceRef<string | undefined>");
         }
     }
@@ -259,16 +259,17 @@ class NullableSuccessResponsesTest {
     }
 
     private static String nullableModelType(String api, String method) {
-        Matcher match = Pattern.compile(Pattern.quote(method) + "\\(\\): Observable<(\\([A-Za-z_$][\\w$]*\\) \\| null)>").matcher(api);
+        Matcher match = Pattern.compile(Pattern.quote(method + "(options?: import('./request-options').RequestOptions): Observable<")
+                + "(\\([A-Za-z_$][\\w$]*\\) \\| null)>").matcher(api);
         assertTrue(match.find(), () -> "Expected nullable model return for " + method + ":\n" + api);
         return match.group(1);
     }
 
     private static void assertJsonCall(String api, String method, String type, boolean observe) {
-        String signature = method + "(): Observable<" + (observe ? "HttpResponse<" + type + ">" : type) + ">";
+        String signature = method + "(options?: import('./request-options').RequestOptions): Observable<" + (observe ? "HttpResponse<" + type + ">" : type) + ">";
         contains(api, signature);
         String methodSource = body(api, signature, "\n    }");
-        contains(methodSource, "return this.http.get<" + type + ">(url" + (observe ? ", { observe: 'response' }" : "") + ");");
+        contains(methodSource, "return this.http.get<" + type + ">(url" + (observe ? ", { ...(options && { context: options.context, headers: options.headers }), observe: 'response' }" : ", options && { context: options.context, headers: options.headers }") + ");");
     }
 
     private static void assertResource(String resources, String method, String type) {
