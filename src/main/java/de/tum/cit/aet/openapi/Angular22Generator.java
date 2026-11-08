@@ -580,6 +580,9 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     /** Retains normalized success-body metadata next to the parent's selected response type and imports. */
     @Override
     public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
+        // Ask the core how it types a response's first entry, as in handleMethodResponse, rather than re-deriving it.
+        ResponseTypes.preferJsonContent(openAPI, operation,
+                schema -> "Blob".equals(fromProperty("response", unaliasSchema(schema), false).dataType));
         CodegenOperation result = super.fromOperation(path, httpMethod, operation, servers);
         ResponseTypes.capture(openAPI, operation, result);
         return result;

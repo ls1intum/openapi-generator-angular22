@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Predicate;
 
 /** The effective response type and its nullable JSON body-mode type, shared by services and resources. */
 record ResponseTypes(String effective, String body) {
@@ -31,10 +32,9 @@ record ResponseTypes(String effective, String body) {
     private static final String UNKNOWN = "unknown";
 
     /**
-     * ClientOptInput sets the OpenAPI before processOpts, which runs before normalization. Puts the JSON media types of
-     * each success first and preserves an operation-level boolean: normalization can remove empty/null union branches,
-     * deduplicate oneOf branches, and replace a union with a nullable reference, losing the original intersection and
-     * exclusivity constraints.
+     * ClientOptInput sets the OpenAPI before processOpts, which runs before normalization. Preserve only an
+     * operation-level boolean here: normalization can remove empty/null union branches, deduplicate oneOf branches,
+     * and replace a union with a nullable reference, losing the original intersection and exclusivity constraints.
      */
     static void captureBeforeNormalization(OpenAPI api) {
         if (api == null) {
@@ -57,7 +57,6 @@ record ResponseTypes(String effective, String body) {
             if (!visited.add(operation)) {
                 continue;
             }
-            successes(api, operation).values().forEach(response -> preferJsonContent(api, response.getContent()));
             operation.addExtension(NULLABLE, nullableJsonSuccess(api, operation));
             if (operation.getCallbacks() != null) {
                 operation.getCallbacks().values().forEach(callback ->
@@ -89,12 +88,22 @@ record ResponseTypes(String effective, String body) {
     }
 
     /**
-     * Moves the media types a JSON call can read to the front, because the core types a response from its first entry.
-     * The generated call parses JSON and Angular's default Accept header prefers it, so the type must not depend on
-     * declaration order. A binary first entry stays: it selects the Blob overload rather than a JSON call.
+     * Moves the media types a JSON call can read to the front of each success, because the core types a response from
+     * its first entry. The generated call parses JSON and Angular's default Accept header prefers it, so the type must
+     * not depend on declaration order. Called on the normalized operation just before the core types it, so that
+     * {@code blob} can ask the core itself: a first entry it types as a Blob stays, since it selects the Blob overload
+     * rather than a JSON call, whether its schema is inline, referenced or nullable.
      */
-    private static void preferJsonContent(OpenAPI api, Content content) {
-        if (content == null || content.size() < 2 || isBinary(api, content.values().iterator().next().getSchema())) {
+    static void preferJsonContent(OpenAPI api, Operation source, Predicate<Schema<?>> blob) {
+        successes(api, source).values().forEach(response -> preferJsonContent(response.getContent(), blob));
+    }
+
+    private static void preferJsonContent(Content content, Predicate<Schema<?>> blob) {
+        if (content == null || content.size() < 2) {
+            return;
+        }
+        Schema<?> first = content.values().iterator().next().getSchema();
+        if (first != null && blob.test(first)) {
             return;
         }
         Map<String, MediaType> declared = new LinkedHashMap<>(content);
@@ -109,16 +118,6 @@ record ResponseTypes(String effective, String body) {
             return 0;
         }
         return TypeScriptSnippets.acceptsJson(mediaType) ? 1 : 2;
-    }
-
-    /** Follows references first, as the core does before it types a response as a Blob. */
-    private static boolean isBinary(OpenAPI api, Schema<?> schema) {
-        Set<Schema<?>> visited = identities();
-        // An unresolved or cyclic reference ends the walk on a reference, which is not binary.
-        while (schema != null && schema.get$ref() != null && visited.add(schema)) {
-            schema = ModelUtils.getReferencedSchema(api, schema);
-        }
-        return schema != null && (ModelUtils.isBinarySchema(schema) || ModelUtils.isFileSchema(schema));
     }
 
     /** Null evidence from every readable body of every success, without forming a union of their DTO body types. */

@@ -374,6 +374,38 @@ paths:
                 $ref: '#/components/schemas/Payload'
         '204':
           description: No body
+  /control/nullable-binary-first:
+    get:
+      tags: [media]
+      operationId: getNullableBinaryFirst
+      responses:
+        '200':
+          description: A nullable binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/FileData'
+                  - type: 'null'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /control/nullable-one-of-binary-first:
+    get:
+      tags: [media]
+      operationId: getNullableOneOfBinaryFirst
+      responses:
+        '200':
+          description: A nullable oneOf binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FileData'
+                  - type: 'null'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Other'
   /control/text-only-before-empty:
     get:
       tags: [media]
@@ -417,3 +449,8 @@ components:
       format: binary
     BinaryAlias:
       $ref: '#/components/schemas/BinaryFile'
+    # Only the nullable compositions use this schema: the core types a reference differently once a nullable
+    # composition elsewhere refers to the same binary schema.
+    FileData:
+      type: string
+      format: binary

@@ -76,6 +76,7 @@ export type ServiceContracts = [
     Assert<Equal<Result<'sendEmpty'>, void>>,
     Assert<Equal<Result<'deleteWithHeaders'>, @HEADER_VOID@>>,
     Assert<Equal<Result<'getBinary'>, HttpResponse<Blob>>>,
+    Assert<Equal<Result<'getNullableBinaryFirst'>, Blob>>,
     Assert<Equal<Result<'getText'>, string>>,
     Assert<Equal<Result<'getBoolean'>, boolean>>,
     Assert<Equal<Result<'getNumber'>, number>>,

@@ -84,6 +84,8 @@ class NullableSuccessResponsesTest {
                     : "deleteWithHeaders(): Observable<void>");
             contains(api, "getBinary(): Observable<HttpResponse<Blob>>");
             contains(api, "return this.http.get(url, { responseType: 'blob', observe: 'response' });");
+            contains(api, "getNullableBinaryFirst(): Observable<Blob>");
+            contains(body(api, "getNullableBinaryFirst()", "\n    }"), "{ responseType: 'blob' }");
             contains(api, "getText(): Observable<string>");
             contains(api, "return this.http.get(url, { responseType: 'text' });");
             assertFalse(api.contains("void | null"));
@@ -200,6 +202,12 @@ class NullableSuccessResponsesTest {
             for (String operation : List.of("getBinaryFirst", "getReferencedBinaryFirst", "getAliasedBinaryFirst")) {
                 contains(api, operation + "(): Observable<HttpResponse<Blob>>");
                 contains(body(api, operation + "()", "\n    }"), "{ responseType: 'blob', observe: 'response' }");
+                contains(resources, operation + "Resource(): HttpResourceRef<Blob | undefined>");
+            }
+            // Also behind a nullable composition, which the core types as a Blob only after normalization.
+            for (String operation : List.of("getNullableBinaryFirst", "getNullableOneOfBinaryFirst")) {
+                contains(api, operation + "(): Observable<Blob>");
+                contains(body(api, operation + "()", "\n    }"), "{ responseType: 'blob' }");
                 contains(resources, operation + "Resource(): HttpResourceRef<Blob | undefined>");
             }
             contains(api, "getTextOnlyBeforeEmpty(): Observable<string>");

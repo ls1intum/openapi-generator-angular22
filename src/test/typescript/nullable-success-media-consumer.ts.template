@@ -39,6 +39,8 @@ export type ServiceContracts = [
     Assert<Equal<Result<'getBinaryFirst'>, HttpResponse<Blob>>>,
     Assert<Equal<Result<'getReferencedBinaryFirst'>, HttpResponse<Blob>>>,
     Assert<Equal<Result<'getAliasedBinaryFirst'>, HttpResponse<Blob>>>,
+    Assert<Equal<Result<'getNullableBinaryFirst'>, Blob>>,
+    Assert<Equal<Result<'getNullableOneOfBinaryFirst'>, Blob>>,
     Assert<Equal<Result<'getTextOnlyBeforeEmpty'>, string>>,
 ];
 

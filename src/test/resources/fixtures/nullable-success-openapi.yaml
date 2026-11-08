@@ -366,6 +366,22 @@ paths:
                 format: binary
         '204':
           $ref: '#/components/responses/NoBody'
+  /payload/nullable-binary-first:
+    get:
+      tags: [nullable]
+      operationId: getNullableBinaryFirst
+      responses:
+        '200':
+          description: A nullable binary first entry keeps the Blob overload before a JSON entry
+          content:
+            application/octet-stream:
+              schema:
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/BinaryFile'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
   /payload/text:
     get:
       tags: [nullable]
@@ -601,6 +617,9 @@ components:
     NoBody:
       description: No body
   schemas:
+    BinaryFile:
+      type: string
+      format: binary
     Job:
       type: object
       required: [id]
