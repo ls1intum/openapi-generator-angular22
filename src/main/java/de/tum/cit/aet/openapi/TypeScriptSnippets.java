@@ -30,7 +30,6 @@ final class TypeScriptSnippets {
 
     /** TypeScript types that {@code String()} turns into a form field value without losing information. */
     private static final Set<String> TS_SCALAR_TYPES = Set.of("string", "number", "boolean");
-    private static final String URL_ENCODED_FORM = "application/x-www-form-urlencoded";
     private static final Set<String> QUERY_STYLES = Set.of("form", "spaceDelimited", "pipeDelimited", "deepObject");
     private static final Pattern JSON_MEDIA_TYPE = Pattern.compile("(?i)application/([^;]+\\+)?json(\\s*;.*)?");
     private static final Pattern JSON_MEDIA_RANGE = Pattern.compile("(?i)(\\*|application)/\\*(\\s*;.*)?");
@@ -227,8 +226,8 @@ final class TypeScriptSnippets {
      *   <li>{@code x-http-type-arg} &mdash; the {@code <T>} type argument, empty when a {@code responseType}
      *       option selects a non-JSON overload that already fixes the result type</li>
      *   <li>{@code x-http-args} &mdash; the argument list: {@code url}, the payload for methods that take one,
-     *       and an options object with, in this order and only when present, {@code body} (DELETE only),
-     *       {@code headers}, {@code responseType} and {@code observe}</li>
+     *       and supported caller options plus, when present, {@code body} (DELETE only), {@code headers},
+     *       {@code responseType} and {@code observe}</li>
      * </ul>
      *
      * @param op              the operation whose HttpClient call should be built
@@ -259,11 +258,9 @@ final class TypeScriptSnippets {
         } else if (op.isBodyAllowed()) {
             args.add("null");
         }
-        if (urlEncoded) {
-            // Angular labels a string body text/plain, so a form body needs its media type named.
-            String contentType = "'Content-Type': " + stringLiteral(URL_ENCODED_FORM);
-            options.add(op.getHasHeaderParams() ? "headers: { ...headers, " + contentType + " }" : "headers: { " + contentType + " }");
-        } else if (op.getHasHeaderParams()) {
+        boolean hasHeaders = urlEncoded || op.getHasHeaderParams();
+        op.vendorExtensions.put("x-has-http-headers", hasHeaders);
+        if (hasHeaders) {
             options.add("headers");
         }
         options.addAll(switch (response) {
@@ -274,8 +271,13 @@ final class TypeScriptSnippets {
         if (observeResponse) {
             options.add("observe: 'response'");
         }
-        if (!options.isEmpty()) {
-            args.add("{ " + String.join(", ", options) + " }");
+        // Forward only the declared options; wider TypeScript values may carry unsupported HttpClient options.
+        String callerOptions = "options && { ...(options.context !== undefined && { context: options.context }), "
+                + "...(options.headers !== undefined && { headers: options.headers }) }";
+        if (options.isEmpty()) {
+            args.add(callerOptions);
+        } else {
+            args.add("{ ...(" + callerOptions + "), " + String.join(", ", options) + " }");
         }
 
         ResponseTypes types = ResponseTypes.of(op, response, "void");

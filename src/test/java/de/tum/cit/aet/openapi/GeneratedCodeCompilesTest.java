@@ -48,6 +48,8 @@ class GeneratedCodeCompilesTest {
 
         NodeProcess.assertSucceeds(tempDir, "Generated code does not compile",
                 TYPESCRIPT.resolve("node_modules/typescript/bin/tsc").toString(), "-p", "tsconfig.json");
+        NodeProcess.assertSucceeds(tempDir, "Generated code does not compile with exact optional properties",
+                TYPESCRIPT.resolve("node_modules/typescript/bin/tsc").toString(), "-p", "tsconfig.json", "--exactOptionalPropertyTypes");
     }
 
     private static void generate(Path spec, Path outputDir, Consumer<CodegenConfigurator> options) {

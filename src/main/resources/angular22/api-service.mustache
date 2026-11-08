@@ -32,8 +32,9 @@ export class {{classname}} {
 {{#allParams}}
      * @param {{paramName}} {{description}}
 {{/allParams}}
+     * @param options the HttpContext and extra headers of this request; a declared header parameter overrides a header of the same name
      */
-    {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/allParams}}): Observable<{{{vendorExtensions.x-observable-type}}}> {
+    {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}, {{/allParams}}options?: import('./request-options').RequestOptions): Observable<{{{vendorExtensions.x-observable-type}}}> {
 {{#pathParams}}
 {{^vendorExtensions.x-is-numeric}}
         const {{vendorExtensions.x-path-name}} = encodeURIComponent(String({{paramName}}));
@@ -50,15 +51,28 @@ export class {{classname}} {
 {{^hasQueryParams}}
         const url = `${this.basePath}{{{vendorExtensions.xPathTemplate}}}`;
 {{/hasQueryParams}}
-{{#hasHeaderParams}}
+{{#vendorExtensions.x-has-http-headers}}
 {{! Without a prototype, every wire name becomes an own entry; on {} a header named __proto__ would hit the setter. }}
-        const headers: Record<string, string> = Object.create(null);
+        const headers: Record<string, string> = Object.assign(Object.create(null), options?.headers);
 {{#headerParams}}
         if ({{paramName}} !== undefined && {{paramName}} !== null) {
+            Object.keys(headers).forEach(key => {
+                if (key.toLowerCase() === {{{vendorExtensions.x-wire-name-literal}}}.toLowerCase()) {
+                    delete headers[key];
+                }
+            });
             headers[{{{vendorExtensions.x-wire-name-literal}}}] = {{{vendorExtensions.x-header-value}}};
         }
 {{/headerParams}}
-{{/hasHeaderParams}}
+{{#vendorExtensions.x-url-encoded}}
+        Object.keys(headers).forEach(key => {
+            if (key.toLowerCase() === 'content-type') {
+                delete headers[key];
+            }
+        });
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+{{/vendorExtensions.x-url-encoded}}
+{{/vendorExtensions.x-has-http-headers}}
 {{#vendorExtensions.x-url-encoded}}
         const formBody = new URLSearchParams();
 {{#formParams}}

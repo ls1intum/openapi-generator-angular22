@@ -107,8 +107,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RepositoryFiles'
+  /api/request-options-model:
+    get:
+      tags: [repository]
+      operationId: getRequestOptionsModel
+      responses:
+        '200':
+          description: A model that shares the request options name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestOptions'
 components:
   schemas:
+    RequestOptions:
+      type: object
+      properties:
+        label:
+          type: string
     RepositoryFiles:
       type: object
       properties:

@@ -97,25 +97,28 @@ When every object branch already declares the schema's properties, the union sta
 itself, since an interface cannot extend a union.
 
 ### API Service (Mutations)
+
+The example omits how generated methods filter request options; they forward only `context` and `headers`.
+
 ```typescript
 @Injectable({ providedIn: 'root' })
 export class CourseApi {
     private readonly http = inject(HttpClient);
     private readonly basePath = '/api';
 
-    createCourse(courseCreate: CourseCreate): Observable<Course> {
+    createCourse(courseCreate: CourseCreate, options?: RequestOptions): Observable<Course> {
         const url = `${this.basePath}/courses`;
-        return this.http.post<Course>(url, courseCreate);
+        return this.http.post<Course>(url, courseCreate, options);
     }
 
-    deleteCourse(courseId: number): Observable<void> {
+    deleteCourse(courseId: number, options?: RequestOptions): Observable<void> {
         const url = `${this.basePath}/courses/${courseId}`;
-        return this.http.delete<void>(url);
+        return this.http.delete<void>(url, options);
     }
 
-    updateCourse(courseId: number, courseUpdate: CourseUpdate): Observable<Course> {
+    updateCourse(courseId: number, courseUpdate: CourseUpdate, options?: RequestOptions): Observable<Course> {
         const url = `${this.basePath}/courses/${courseId}`;
-        return this.http.put<Course>(url, courseUpdate);
+        return this.http.put<Course>(url, courseUpdate, options);
     }
 }
 ```
@@ -357,6 +360,18 @@ no 2xx response.
 
 The input must accurately document absence or nullability; the generator cannot infer it from server code.
 Corrected nullable types can break strict consumers: check for null and, for resource values, undefined before dereferencing.
+
+Every service method takes an optional last argument, `options?: RequestOptions`, with a `context` and extra `headers`
+for that one request:
+
+```typescript
+const skipAlert = new HttpContext().set(SKIP_HTTP_ERROR_ALERT, true);
+this.textUnitApi.updateTextUnit(lectureId, textUnit, { context: skipAlert });
+```
+
+`context` reaches the interceptors unchanged. A header parameter the operation declares overrides a caller header of the
+same name, ignoring case. Only `context` and `headers` are forwarded; the operation's `responseType` and `observe` stay
+as generated. An httpResource function takes no options; it builds its request from its arguments alone.
 
 An array with `uniqueItems: true` is typed `Array<T>`, not `Set<T>`. JSON has no sets: a response arrives as an
 array, and `JSON.stringify`, which Angular uses for request bodies, sends a `Set` as `{}`. A `typeMappings` entry
