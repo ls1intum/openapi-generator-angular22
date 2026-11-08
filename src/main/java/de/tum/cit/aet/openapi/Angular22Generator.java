@@ -41,8 +41,8 @@ import java.util.stream.Collectors;
  *       plus const enum objects for runtime enum access (e.g., {@code JobDetailDTOStateEnum.Draft}).</li>
  * </ol>
  *
- * <p>One {@code api/query-params.ts} per client holds {@code appendQueryParam}, which the API and resource files
- * with query parameters import.</p>
+ * <p>One {@code api/query-params.ts} per client holds {@code appendQueryParam}, which service and resource files with
+ * query parameters and service files with URL-encoded forms import.</p>
  *
  * <p><b>Generation Pipeline</b></p>
  * The generator hooks into five lifecycle stages of the OpenAPI Generator framework:

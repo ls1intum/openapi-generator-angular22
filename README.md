@@ -157,8 +157,8 @@ export function getCourseResource(courseId: Signal<number | undefined> | number)
 
 ### Query Parameters
 
-`api/query-params.ts` holds `appendQueryParam`, which every API and resources file with query parameters imports. It
-sends each parameter in its declared `style` and `explode`:
+`api/query-params.ts` holds `appendQueryParam`, which service and resource files with query parameters and service files
+with URL-encoded forms import. It sends each parameter in its declared `style` and `explode`:
 
 - `form` with explode, the default, repeats the key of an array or set and sends an object as one key per property.
   A nested object gets dotted keys (`range.min=1`), which is how Spring binds a query DTO, since OpenAPI defines no
