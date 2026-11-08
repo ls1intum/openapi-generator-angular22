@@ -57,7 +57,7 @@ record ResponseTypes(String effective, String body) {
             if (!visited.add(operation)) {
                 continue;
             }
-            successes(api, operation).values().forEach(response -> preferJsonContent(response.getContent()));
+            successes(api, operation).values().forEach(response -> preferJsonContent(api, response.getContent()));
             operation.addExtension(NULLABLE, nullableJsonSuccess(api, operation));
             if (operation.getCallbacks() != null) {
                 operation.getCallbacks().values().forEach(callback ->
@@ -93,8 +93,8 @@ record ResponseTypes(String effective, String body) {
      * The generated call parses JSON and Angular's default Accept header prefers it, so the type must not depend on
      * declaration order. A binary first entry stays: it selects the Blob overload rather than a JSON call.
      */
-    private static void preferJsonContent(Content content) {
-        if (content == null || content.size() < 2 || isBinary(content.values().iterator().next().getSchema())) {
+    private static void preferJsonContent(OpenAPI api, Content content) {
+        if (content == null || content.size() < 2 || isBinary(api, content.values().iterator().next().getSchema())) {
             return;
         }
         Map<String, MediaType> declared = new LinkedHashMap<>(content);
@@ -111,7 +111,13 @@ record ResponseTypes(String effective, String body) {
         return TypeScriptSnippets.acceptsJson(mediaType) ? 1 : 2;
     }
 
-    private static boolean isBinary(Schema<?> schema) {
+    /** Follows references first, as the core does before it types a response as a Blob. */
+    private static boolean isBinary(OpenAPI api, Schema<?> schema) {
+        Set<Schema<?>> visited = identities();
+        // An unresolved or cyclic reference ends the walk on a reference, which is not binary.
+        while (schema != null && schema.get$ref() != null && visited.add(schema)) {
+            schema = ModelUtils.getReferencedSchema(api, schema);
+        }
         return schema != null && (ModelUtils.isBinarySchema(schema) || ModelUtils.isFileSchema(schema));
     }
 

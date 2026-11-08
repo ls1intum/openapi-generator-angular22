@@ -341,9 +341,9 @@ validate the value before use. A selected bodyless success takes the type of the
 The generated call parses JSON and Angular's default `Accept` header prefers it, so a response that lists several
 media types is typed from its JSON entry, whatever the declaration order, and `*/*` and `application/*` count as
 JSON. Any bodyless success makes such a call nullable, whichever media type its body declares, because an empty
-response reaches it as `null`. A binary first entry keeps the `Blob` overload, and a response with only `text/*`
-types keeps the text overload; both are typed without `null`. The `default` response counts as a success only
-when the operation has no 2xx response.
+response reaches it as `null`. A binary first entry, inline or behind a `$ref`, keeps the `Blob` overload, and a
+response with only `text/*` types keeps the text overload; both are typed without `null`. The `default` response
+counts as a success only when the operation has no 2xx response.
 
 The input must accurately document absence or nullability; the generator cannot infer it from server code.
 Corrected nullable types can break strict consumers: check for null and, for resource values, undefined before dereferencing.

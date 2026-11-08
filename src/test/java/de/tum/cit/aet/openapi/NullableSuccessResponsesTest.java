@@ -196,9 +196,12 @@ class NullableSuccessResponsesTest {
             }
             assertJsonCall(api, "getOmittedWithHeaders", "unknown", headers);
             assertResource(resources, "getOmittedWithHeaders", "unknown");
-            contains(api, "getBinaryFirst(): Observable<HttpResponse<Blob>>");
-            contains(body(api, "getBinaryFirst()", "\n    }"), "{ responseType: 'blob', observe: 'response' }");
-            contains(resources, "getBinaryFirstResource(): HttpResourceRef<Blob | undefined>");
+            // A binary first entry keeps the Blob overload, also behind a reference or a chain of references.
+            for (String operation : List.of("getBinaryFirst", "getReferencedBinaryFirst", "getAliasedBinaryFirst")) {
+                contains(api, operation + "(): Observable<HttpResponse<Blob>>");
+                contains(body(api, operation + "()", "\n    }"), "{ responseType: 'blob', observe: 'response' }");
+                contains(resources, operation + "Resource(): HttpResourceRef<Blob | undefined>");
+            }
             contains(api, "getTextOnlyBeforeEmpty(): Observable<string>");
             contains(body(api, "getTextOnlyBeforeEmpty()", "\n    }"), "{ responseType: 'text' }");
             contains(resources, "getTextOnlyBeforeEmptyResource(): HttpResourceRef<string | undefined>");

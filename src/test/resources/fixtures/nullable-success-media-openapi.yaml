@@ -344,6 +344,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Payload'
+  /control/referenced-binary-first:
+    get:
+      tags: [media]
+      operationId: getReferencedBinaryFirst
+      responses:
+        '200':
+          description: A referenced binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/BinaryFile'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /control/aliased-binary-first:
+    get:
+      tags: [media]
+      operationId: getAliasedBinaryFirst
+      responses:
+        '200':
+          description: A binary first entry behind a chain of references keeps the Blob overload
+          content:
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/BinaryAlias'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+        '204':
+          description: No body
   /control/text-only-before-empty:
     get:
       tags: [media]
@@ -382,3 +412,8 @@ components:
       properties:
         name:
           type: string
+    BinaryFile:
+      type: string
+      format: binary
+    BinaryAlias:
+      $ref: '#/components/schemas/BinaryFile'
