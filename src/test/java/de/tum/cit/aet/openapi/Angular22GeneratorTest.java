@@ -118,8 +118,9 @@ class Angular22GeneratorTest {
         assertContains(api, "appendQueryParam(formBody, 'joined', joined, 'form', false);");
         assertContains(api, "appendQueryParam(formBody, 'filter', filter, 'deepObject', false);");
         assertContains(api, "appendQueryParam(formBody, 'piped', piped, 'pipeDelimited', false);");
-        assertContains(api, "return this.http.post<LoginResult>(url, formBody.toString(), { headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' } });");
-        assertContains(api, "return this.http.post<void>(url, formBody.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });");
+        assertContains(api, "headers['Content-Type'] = 'application/x-www-form-urlencoded';");
+        assertContains(api, "return this.http.post<LoginResult>(url, formBody.toString(), { ...(options && { context: options.context, headers: options.headers }), headers });");
+        assertContains(api, "return this.http.post<void>(url, formBody.toString(), { ...(options && { context: options.context, headers: options.headers }), headers });");
     }
 
     @Test
@@ -127,7 +128,7 @@ class Angular22GeneratorTest {
         generateFixture("fixtures/delete-body-openapi.yaml", Map.of());
 
         String api = Files.readString(tempDir.resolve("api/user-api.ts"));
-        // HttpClient.delete takes (url, options && { context: options.context, headers: options.headers }); a body passed as the second argument selects the wrong overload.
+        // HttpClient.delete takes (url, options); a body passed as the second argument selects the wrong overload.
         assertContains(api, "return this.http.delete<void>(url, { ...(options && { context: options.context, headers: options.headers }), body: bulkUserDeletionRequest });");
         assertContains(api, "return this.http.delete<DeletionSummary>(url, { ...(options && { context: options.context, headers: options.headers }), body: permanentUserDeletionRequest });");
     }

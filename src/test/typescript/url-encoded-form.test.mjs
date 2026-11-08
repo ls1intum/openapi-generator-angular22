@@ -29,14 +29,21 @@ assert.equal(
         '&since=2026-10-06T12%3A34%3A56.000Z&filter%5Blevel%5D=2&piped=r%7Cs&count=3&day=2026-10-06&holidays=2026-12-25',
     'each field goes out in the style of its encoding, form with explode by default',
 );
-assert.deepEqual(options, { headers: { 'X-Trace': 'trace-1', 'Content-Type': 'application/x-www-form-urlencoded' } }, 'the form type joins the header parameters');
+assert.deepEqual({ ...options.headers }, { 'X-Trace': 'trace-1', 'Content-Type': 'application/x-www-form-urlencoded' }, 'the form type joins the header parameters');
 
 api.login(...(pathParameter === 'true' ? ['tenant'] : []), '', 'token');
 ({ body, options } = calls.pop());
 assert.equal(body, 'state=&id_token=token', 'an empty string is sent and absent fields are left out');
-assert.deepEqual(options, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+assert.deepEqual({ ...options.headers }, { 'Content-Type': 'application/x-www-form-urlencoded' });
 
 api.logout();
 ({ body, options } = calls.pop());
 assert.equal(body, '', 'a body without fields is empty');
-assert.deepEqual(options, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+assert.deepEqual({ ...options.headers }, { 'Content-Type': 'application/x-www-form-urlencoded' });
+
+const context = { token: 'skip-alert' };
+api.logout('bye', { context, headers: { 'content-type': 'text/plain', 'X-Extra': 'kept' } });
+({ body, options } = calls.pop());
+assert.equal(body, 'reason=bye');
+assert.equal(options.context, context);
+assert.deepEqual({ ...options.headers }, { 'X-Extra': 'kept', 'Content-Type': 'application/x-www-form-urlencoded' });
