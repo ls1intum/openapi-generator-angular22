@@ -1,0 +1,199 @@
+import type { Observable } from 'rxjs';
+import type { NormalizedApi } from './api/normalized-api';
+import type { @Payload@ as Payload } from './model/@PayloadFile@';
+import type { @TypePayload@ as TypePayload } from './model/@TypePayloadFile@';
+import type { @Choice@ as Choice } from './model/@ChoiceFile@';
+import type { @OtherPayload@ as OtherPayload } from './model/@OtherPayloadFile@';
+import type { @NonNullIntersection@ as NonNullIntersection } from './model/@NonNullIntersectionFile@';
+
+type Emission<T> = T extends Observable<infer V> ? V : never;
+type Result<K extends keyof NormalizedApi> = NormalizedApi[K] extends (...args: never[]) => infer R ? Emission<R> : never;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Equal<A, B> = IsAny<A> extends true ? false :
+    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+
+export const omittedSchemaNull: Result<'getOmittedSchema'> = null;
+// @ts-expect-error Observable emissions do not include resource loading state.
+export const omittedSchemaUndefined: Result<'getOmittedSchema'> = undefined;
+// @ts-expect-error Unconstrained error responses do not widen the selected success body.
+export const omittedSchemaErrorNull: Result<'getOmittedSchemaError'> = null;
+
+export function checkedOmittedSchema(value: Result<'getOmittedSchema'>): string {
+    // @ts-expect-error A null check is required for unconstrained successful JSON content.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+export type ServiceContracts = [
+    Assert<Equal<Result<'getUnknownSuccess'>, unknown>>,
+    Assert<Equal<Result<'getUnknownSuccessReversed'>, unknown>>,
+    Assert<Equal<Result<'getHeaderUnknownSuccess'>, @HEADER_UNKNOWN@>>,
+    Assert<Equal<Result<'sendBodylessOnly'>, void>>,
+    Assert<Equal<Result<'getOmittedSchema'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaReversed'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaBeforeBody'>, Payload | null>>,
+    Assert<Equal<Result<'getOmittedSchemaError'>, Payload>>,
+    Assert<Equal<Result<'getHeaderOmittedSchema'>, @HEADER_PAYLOAD@>>,
+    Assert<Equal<Result<'getTypeObject'>, TypePayload | null>>,
+    Assert<Equal<Result<'getInlineType'>, { readonly id: string } | null>>,
+    Assert<Equal<Result<'getOneOf'>, Payload | null>>,
+    Assert<Equal<Result<'getAnyOf'>, Payload | null>>,
+    Assert<Equal<Result<'getInlineOneOf'>, Payload | null>>,
+    Assert<Equal<Result<'getInlineAnyOf'>, Payload | null>>,
+    Assert<Equal<Result<'getRootArray'>, Array<Payload> | null>>,
+    Assert<Equal<Result<'getRootMap'>, { [key: string]: number } | null>>,
+    Assert<Equal<Result<'getRootScalar'>, boolean | null>>,
+    Assert<Equal<Result<'getUnion'>, @HEADER_CHOICE@>>,
+    Assert<Equal<Choice, Payload | OtherPayload | null>>,
+    Assert<Equal<Result<'getJsonNull'>, null>>,
+    Assert<Equal<Result<'getJsonNullWithHeaders'>, @HEADER_NULL@>>,
+    Assert<Equal<Result<'getNonNull'>, Payload>>,
+    Assert<Equal<Result<'getNullableItems'>, Array<string | null>>>,
+    Assert<Equal<Result<'getIntersection'>, NonNullIntersection>>,
+    Assert<Equal<Result<'getUnconstrainedSuccess'>, Payload | null>>,
+    Assert<Equal<Result<'getUnconstrainedAllOf'>, Payload | null>>,
+    Assert<Equal<Result<'getUnconstrainedAnyOf'>, Payload | null>>,
+    Assert<Equal<Result<'getUnconstrainedOneOf'>, Payload | null>>,
+    Assert<Equal<Result<'getNullableEnum'>, Payload | null>>,
+    Assert<Equal<Result<'getExclusiveEmptyOneOf'>, Payload>>,
+    Assert<Equal<Result<'getConstrainedNullableEnum'>, Payload>>,
+    Assert<Equal<Result<'getConstrainedNullableAllOf'>, Payload>>,
+    Assert<Equal<Result<'getNonNullTypedUnion'>, Payload>>
+];
+
+export const unconstrainedNull: Result<'getUnconstrainedSuccess'> = null;
+// @ts-expect-error An enum excluding null constrains a nullable type.
+export const enumNull: Result<'getConstrainedNullableEnum'> = null;
+// @ts-expect-error Null must satisfy exactly one branch, even before normalization deduplicates schemas.
+export const exclusiveNull: Result<'getExclusiveEmptyOneOf'> = null;
+// @ts-expect-error A non-null local type constrains a null-containing union.
+export const typedUnionNull: Result<'getNonNullTypedUnion'> = null;
+
+export const missingOneOf: Result<'getOneOf'> = null;
+export const missingAnyOf: Result<'getAnyOf'> = null;
+// Normalized object aliases must also keep nullable members inside the non-null body.
+export const nullableOneOfMembers: Result<'getOneOf'> = {
+    id: 'one-of', note: null, sequence: null, tags: ['tag', null], scores: { score: null },
+};
+export const nullableAnyOfMembers: Result<'getAnyOf'> = {
+    id: 'any-of', note: null, sequence: null, tags: ['tag', null], scores: { score: null },
+};
+export const jsonNull: Result<'getJsonNull'> = null;
+// @ts-expect-error Explicit JSON null is not a void response.
+export const jsonVoid: Result<'getJsonNull'> = undefined;
+// @ts-expect-error Normalization must not make the ordinary referenced model nullable globally.
+export const ordinaryNull: Result<'getNonNull'> = null;
+
+export function checkedNormalized(value: Result<'getOneOf'>): string {
+    // @ts-expect-error The normalized single-model-plus-null response requires a null check.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+// HEADERS_START
+import type { HttpResponse } from '@angular/common/http';
+export type FullBodyContracts = [
+    Assert<Equal<Result<'getHeaderUnknownSuccess'>['body'], unknown>>,
+    Assert<Equal<Result<'getHeaderOmittedSchema'>['body'], Payload | null>>,
+    Assert<Equal<Result<'getJsonNullWithHeaders'>['body'], null>>,
+    Assert<Equal<Result<'getUnion'>['body'], Choice>>
+];
+export function checkedOmittedSchemaResponse(response: Result<'getHeaderOmittedSchema'>): string {
+    // @ts-expect-error Full-response bodies retain null without widening the HttpResponse generic.
+    response.body.id;
+    if (response.body === null) return 'absent';
+    return response.body.id;
+}
+export function checkedUnknownResponse(response: Result<'getHeaderUnknownSuccess'>): string {
+    // @ts-expect-error An unknown full-response body needs validation before property access.
+    response.body.id;
+    return checkedUnknown(response.body);
+}
+// HEADERS_END
+
+// RESOURCES_START
+import type { HttpResourceRef } from '@angular/common/http';
+import * as resources from '@RESOURCE_MODULE@';
+type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
+export type ResourceContracts = [
+    Assert<Equal<Value<'getUnknownSuccessResource'>, unknown>>,
+    Assert<Equal<ReturnType<typeof resources.getUnknownSuccessResource>, HttpResourceRef<unknown>>>,
+    Assert<Equal<Value<'getUnknownSuccessReversedResource'>, unknown>>,
+    Assert<Equal<Value<'getHeaderUnknownSuccessResource'>, unknown>>,
+    Assert<Equal<Value<'getOmittedSchemaResource'>, Payload | null | undefined>>,
+    Assert<Equal<ReturnType<typeof resources.getOmittedSchemaResource>, HttpResourceRef<Payload | null | undefined>>>,
+    Assert<Equal<Value<'getOmittedSchemaReversedResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getOmittedSchemaBeforeBodyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getOmittedSchemaErrorResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getHeaderOmittedSchemaResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getTypeObjectResource'>, TypePayload | null | undefined>>,
+    Assert<Equal<Value<'getInlineTypeResource'>, { readonly id: string } | null | undefined>>,
+    Assert<Equal<Value<'getOneOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getAnyOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getInlineOneOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getInlineAnyOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getRootArrayResource'>, Array<Payload> | null | undefined>>,
+    Assert<Equal<Value<'getRootMapResource'>, { [key: string]: number } | null | undefined>>,
+    Assert<Equal<Value<'getRootScalarResource'>, boolean | null | undefined>>,
+    Assert<Equal<Value<'getUnionResource'>, Choice | undefined>>,
+    Assert<Equal<Value<'getJsonNullResource'>, null | undefined>>,
+    Assert<Equal<Value<'getJsonNullWithHeadersResource'>, null | undefined>>,
+    Assert<Equal<Value<'getNonNullResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getNullableItemsResource'>, Array<string | null> | undefined>>,
+    Assert<Equal<Value<'getIntersectionResource'>, NonNullIntersection | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedSuccessResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedAllOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedAnyOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getUnconstrainedOneOfResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getNullableEnumResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getExclusiveEmptyOneOfResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getConstrainedNullableEnumResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getConstrainedNullableAllOfResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getNonNullTypedUnionResource'>, Payload | undefined>>
+];
+
+export function checkedNormalizedResource(resource: ReturnType<typeof resources.getOneOfResource>): string {
+    const value = resource.value();
+    // @ts-expect-error Both null and undefined are present in the normalized resource contract.
+    value.id;
+    if (value === undefined) return 'loading';
+    // @ts-expect-error Checking the loading state alone does not exclude a successful null.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+export function checkedOmittedSchemaResource(resource: ReturnType<typeof resources.getOmittedSchemaResource>): string {
+    const value = resource.value();
+    if (value === undefined) return 'loading';
+    // @ts-expect-error An omitted JSON schema still permits a successful null value.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+export function checkedUnknownResource(resource: ReturnType<typeof resources.getUnknownSuccessResource>): string {
+    const value = resource.value();
+    if (value === undefined) return 'loading';
+    // @ts-expect-error Excluding loading state does not establish the arbitrary JSON body's shape.
+    value.id;
+    return checkedUnknown(value);
+}
+// RESOURCES_END
+
+export const unknownNull: Result<'getUnknownSuccess'> = null;
+export const unknownObject: Result<'getUnknownSuccess'> = { id: 'ready' };
+export const unknownArray: Result<'getUnknownSuccess'> = [1, 'ready', null];
+export const unknownNumber: Result<'getUnknownSuccess'> = 0;
+export const unknownBoolean: Result<'getUnknownSuccess'> = false;
+
+export function checkedUnknown(value: Result<'getUnknownSuccess'>): string {
+    // @ts-expect-error Arbitrary JSON cannot be consumed as a known DTO.
+    value.id;
+    if (value === null) return 'absent';
+    // @ts-expect-error A null check alone does not validate the response shape.
+    value.id;
+    if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') return value.id;
+    return 'other';
+}

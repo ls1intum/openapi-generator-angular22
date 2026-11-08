@@ -71,8 +71,9 @@ export type QuizQuestionCreate = MultipleChoiceQuestionCreate | ShortAnswerQuest
 ```
 
 A primitive or array branch keeps its type (`string`, `Array<A>`), and an inline enum branch contributes its values
-(`'easy' | 'hard'`). The parent generator reduces `oneOf: [{$ref: A}, {type: 'null'}]` to `A` before this step, so
-that schema becomes a copy of `A` without `null`; a property that refers to it is still typed `| null`.
+(`'easy' | 'hard'`). A single-model-plus-null `oneOf` can produce a model that copies `A` without a `null` member,
+while JSON response types preserve `A | null`. Single-model-plus-null `anyOf` responses are also supported;
+general multi-model `anyOf` support remains a separate limitation.
 
 A TypeScript union is not exclusive: a value may match several branches, which `oneOf` forbids. The union is exact
 only when every branch has a distinct single-value discriminator or a primitive type of its own in TypeScript.
@@ -317,7 +318,36 @@ body in `body` and the response headers in `headers`, in two cases:
   `HttpErrorResponse` already exposes it. The option is off by default, because it changes the return type of every
   such method.
 
-An httpResource function is unaffected; its `HttpResourceRef` exposes the headers of every response as `headers()`.
+Header observation does not change resource factories; `HttpResourceRef` exposes response headers as `headers()`.
+
+JSON methods return `Observable<T | null>` when the OpenAPI document declares both body-bearing and bodyless
+successes (for example, `200 Job` and `204`), or a nullable success body, including a single nullable `200`.
+OpenAPI 3.0 and 3.1 nullability are supported. Nullable properties, items and error responses do not make the
+successful response itself nullable; pure bodyless operations keep `Observable<void>`.
+An unconstrained JSON schema (`{}`) or omitted schema permits null; enum and composition constraints can exclude it.
+
+```typescript
+getActiveJob(): Observable<Job | null>;
+getActiveJobResource(): HttpResourceRef<Job | null | undefined>;
+```
+
+Separate and inline resources retain `undefined` for loading/idle state. Full-response methods use the same body
+type in `HttpResponse<T>`, whose `body` already permits null; nullability does not enable full-response observation.
+Different successful DTO schemas are still not combined into a union.
+A selected JSON success without a schema uses `unknown`, which already includes null and requires consumers to
+validate the value before use. A selected bodyless success takes the type of the lowest success with a schema, or
+`unknown` when the other successes have no schema.
+
+The generated call parses JSON and Angular's default `Accept` header prefers it, so a response that lists several
+media types is typed from its JSON entry, whatever the declaration order, and `*/*` and `application/*` count as
+JSON unless their schema is binary. Any bodyless success makes such a call nullable, whichever media type its body
+declares, because an empty response reaches it as `null`. A first entry typed as `Blob` keeps the `Blob` overload,
+whether its binary schema is inline, behind a `$ref` or nullable, and a response with only `text/*` types keeps the
+text overload; both are typed without `null`. The `default` response counts as a success only when the operation has
+no 2xx response.
+
+The input must accurately document absence or nullability; the generator cannot infer it from server code.
+Corrected nullable types can break strict consumers: check for null and, for resource values, undefined before dereferencing.
 
 An array with `uniqueItems: true` is typed `Array<T>`, not `Set<T>`. JSON has no sets: a response arrives as an
 array, and `JSON.stringify`, which Angular uses for request bodies, sends a `Set` as `{}`. A `typeMappings` entry

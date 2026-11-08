@@ -1,0 +1,104 @@
+import type { HttpResponse } from '@angular/common/http';
+import type { Observable } from 'rxjs';
+import type { MediaApi } from './api/media-api';
+import type { @Other@ as Other } from './model/@OtherFile@';
+import type { @Payload@ as Payload } from './model/@PayloadFile@';
+
+type Emission<T> = T extends Observable<infer V> ? V : never;
+type Result<K extends keyof MediaApi> = MediaApi[K] extends (...args: never[]) => infer R ? Emission<R> : never;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Equal<A, B> = IsAny<A> extends true ? false :
+    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+
+export type ServiceContracts = [
+    Assert<Equal<Result<'getOmittedBeforeBody'>, unknown>>,
+    Assert<Equal<Result<'getOmittedAlone'>, unknown>>,
+    Assert<Equal<Result<'getOmittedBeforeEmpty'>, unknown>>,
+    Assert<Equal<Result<'getOmittedRange'>, unknown>>,
+    Assert<Equal<Result<'getOmittedWithHeaders'>, @HEADER_UNKNOWN@>>,
+    Assert<Equal<Result<'getRangeBeforeEmpty'>, Payload | null>>,
+    Assert<Equal<Result<'getApplicationRangeBeforeEmpty'>, Payload | null>>,
+    Assert<Equal<Result<'getRangeNullable'>, Payload | null>>,
+    Assert<Equal<Result<'getRangeAfterEmpty'>, Payload | null>>,
+    Assert<Equal<Result<'getXmlBeforeEmpty'>, Payload | null>>,
+    Assert<Equal<Result<'getLaterTextFirst'>, Payload | null>>,
+    Assert<Equal<Result<'getLaterJsonFirst'>, Payload | null>>,
+    Assert<Equal<Result<'getSelectedTextFirst'>, Payload>>,
+    Assert<Equal<Result<'getSelectedJsonFirst'>, Payload>>,
+    Assert<Equal<Result<'getSelectedTextFirstBeforeEmpty'>, Other | null>>,
+    Assert<Equal<Result<'getSelectedJsonFirstBeforeEmpty'>, Other | null>>,
+    Assert<Equal<Result<'getSelectedRangeFirst'>, Payload>>,
+    Assert<Equal<Result<'getRecoveredTextFirst'>, Payload | null>>,
+    Assert<Equal<Result<'getDefaultNullable'>, Payload | null>>,
+    Assert<Equal<Result<'getDefaultOmitted'>, unknown>>,
+    Assert<Equal<Result<'getDefaultError'>, Payload>>,
+    Assert<Equal<Result<'getLaterTextWithoutSchema'>, Payload>>,
+    Assert<Equal<Result<'getLaterXmlNullable'>, Payload>>,
+    Assert<Equal<Result<'getNullableErrorRange'>, Payload>>,
+    Assert<Equal<Result<'getBinaryFirst'>, HttpResponse<Blob>>>,
+    Assert<Equal<Result<'getReferencedBinaryFirst'>, HttpResponse<Blob>>>,
+    Assert<Equal<Result<'getAliasedBinaryFirst'>, HttpResponse<Blob>>>,
+    Assert<Equal<Result<'getNullableBinaryFirst'>, Blob>>,
+    Assert<Equal<Result<'getNullableOneOfBinaryFirst'>, Blob>>,
+    Assert<Equal<Result<'getTextBeforeWildcardBinary'>, string>>,
+    Assert<Equal<Result<'getEmptyBeforeWildcardBinary'>, HttpResponse<void>>>,
+    Assert<Equal<Result<'getTextOnlyBeforeEmpty'>, string>>,
+];
+
+export function checkedOmitted(value: Result<'getOmittedBeforeBody'>): string {
+    // @ts-expect-error A body without a schema cannot be consumed as a known DTO.
+    value.id;
+    if (value === null) return 'absent';
+    // @ts-expect-error A null check alone does not validate the response shape.
+    value.id;
+    if (typeof value === 'object' && 'id' in value && typeof value.id === 'string') return value.id;
+    return 'other';
+}
+
+export function checkedRange(value: Result<'getRangeBeforeEmpty'>): string {
+    // @ts-expect-error A 204 reaches a JSON call as null, whatever media type the 200 declares.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+export function checkedLaterTextFirst(value: Result<'getLaterTextFirst'>): string {
+    // @ts-expect-error The JSON entry of a later success permits null, whatever its position.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+export function checkedSelectedTextFirst(value: Result<'getSelectedTextFirst'>): string {
+    return value.id;
+}
+
+export function checkedDefault(value: Result<'getDefaultNullable'>): string {
+    // @ts-expect-error A default response that types the method carries its null along.
+    value.id;
+    if (value === null) return 'absent';
+    return value.id;
+}
+
+// RESOURCES_START
+import type { HttpResourceRef } from '@angular/common/http';
+import * as resources from '@RESOURCE_MODULE@';
+
+type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
+export type ResourceContracts = [
+    Assert<Equal<Value<'getOmittedBeforeBodyResource'>, unknown>>,
+    Assert<Equal<Value<'getOmittedAloneResource'>, unknown>>,
+    Assert<Equal<Value<'getOmittedWithHeadersResource'>, unknown>>,
+    Assert<Equal<Value<'getRangeBeforeEmptyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getRangeAfterEmptyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getXmlBeforeEmptyResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getLaterTextFirstResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getLaterJsonFirstResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getSelectedTextFirstResource'>, Payload | undefined>>,
+    Assert<Equal<Value<'getSelectedTextFirstBeforeEmptyResource'>, Other | null | undefined>>,
+    Assert<Equal<Value<'getDefaultNullableResource'>, Payload | null | undefined>>,
+    Assert<Equal<Value<'getDefaultOmittedResource'>, unknown>>,
+    Assert<Equal<Value<'getTextOnlyBeforeEmptyResource'>, string | undefined>>,
+];
+// RESOURCES_END

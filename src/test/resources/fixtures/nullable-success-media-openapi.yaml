@@ -1,0 +1,485 @@
+openapi: 3.1.0
+info:
+  title: Success bodies across media types
+  description: >-
+    The parser can reuse one content map for equal content, so the declaration-order pairs differ in a schema
+    description to keep each order intact.
+  version: 1.0.0
+paths:
+  # A selected body without a schema may hold any JSON value.
+  /omitted/before-body:
+    get:
+      tags: [media]
+      operationId: getOmittedBeforeBody
+      responses:
+        '200':
+          $ref: '#/components/responses/OmittedBody'
+        '201':
+          $ref: '#/components/responses/PayloadBody'
+  /omitted/alone:
+    get:
+      tags: [media]
+      operationId: getOmittedAlone
+      responses:
+        '200':
+          $ref: '#/components/responses/OmittedBody'
+  /omitted/before-empty:
+    get:
+      tags: [media]
+      operationId: getOmittedBeforeEmpty
+      responses:
+        '200':
+          $ref: '#/components/responses/OmittedBody'
+        '204':
+          description: No body
+  /omitted/range:
+    get:
+      tags: [media]
+      operationId: getOmittedRange
+      responses:
+        '200':
+          description: Any media type, no schema
+          content:
+            '*/*': {}
+  /omitted/with-headers:
+    get:
+      tags: [media]
+      operationId: getOmittedWithHeaders
+      responses:
+        '200':
+          description: JSON content without a schema and a response header
+          headers:
+            X-Trace:
+              schema:
+                type: string
+          content:
+            application/json: {}
+  # A media range or another non-text type does not change that the generated call parses JSON.
+  /range/before-empty:
+    get:
+      tags: [media]
+      operationId: getRangeBeforeEmpty
+      responses:
+        '200':
+          description: Any media type
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Payload'
+        '204':
+          description: No body
+  /range/application-before-empty:
+    get:
+      tags: [media]
+      operationId: getApplicationRangeBeforeEmpty
+      responses:
+        '200':
+          description: Any application media type
+          content:
+            application/*:
+              schema:
+                $ref: '#/components/schemas/Payload'
+        '204':
+          description: No body
+  /range/nullable:
+    get:
+      tags: [media]
+      operationId: getRangeNullable
+      responses:
+        '200':
+          description: Any media type, nullable
+          content:
+            '*/*':
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+  /range/after-empty:
+    get:
+      tags: [media]
+      operationId: getRangeAfterEmpty
+      responses:
+        '200':
+          description: No body
+        '201':
+          description: Any media type
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /xml/before-empty:
+    get:
+      tags: [media]
+      operationId: getXmlBeforeEmpty
+      responses:
+        '200':
+          description: Declared as XML, still read by a JSON call
+          content:
+            application/xml:
+              schema:
+                $ref: '#/components/schemas/Payload'
+        '204':
+          description: No body
+  # Null evidence in a later response, in both declaration orders.
+  /later/text-first:
+    get:
+      tags: [media]
+      operationId: getLaterTextFirst
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Text first
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Text first
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+  /later/json-first:
+    get:
+      tags: [media]
+      operationId: getLaterJsonFirst
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: JSON first
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+            text/plain:
+              schema:
+                type: string
+                description: JSON first
+  # The selected response is typed from its JSON entry, in both declaration orders.
+  /selected/text-first:
+    get:
+      tags: [media]
+      operationId: getSelectedTextFirst
+      responses:
+        '200':
+          description: Text first
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Selected text first
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /selected/json-first:
+    get:
+      tags: [media]
+      operationId: getSelectedJsonFirst
+      responses:
+        '200':
+          description: JSON first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+            text/plain:
+              schema:
+                type: string
+                description: Selected JSON first
+  /selected/text-first-before-empty:
+    get:
+      tags: [media]
+      operationId: getSelectedTextFirstBeforeEmpty
+      responses:
+        '200':
+          description: Text first
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Text first before empty
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Other'
+        '204':
+          description: No body
+  /selected/json-first-before-empty:
+    get:
+      tags: [media]
+      operationId: getSelectedJsonFirstBeforeEmpty
+      responses:
+        '200':
+          description: JSON first
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Other'
+            text/plain:
+              schema:
+                type: string
+                description: JSON first before empty
+        '204':
+          description: No body
+  /selected/range-first:
+    get:
+      tags: [media]
+      operationId: getSelectedRangeFirst
+      responses:
+        '200':
+          description: An exact JSON type wins over a range
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/Other'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /recovered/text-first:
+    get:
+      tags: [media]
+      operationId: getRecoveredTextFirst
+      responses:
+        '200':
+          description: No body
+        '201':
+          description: Text first
+          content:
+            text/plain:
+              schema:
+                type: string
+                description: Recovered text first
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  # The default response types the method only when no 2xx response exists.
+  /default/nullable:
+    get:
+      tags: [media]
+      operationId: getDefaultNullable
+      responses:
+        default:
+          description: Nullable
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+  /default/omitted:
+    get:
+      tags: [media]
+      operationId: getDefaultOmitted
+      responses:
+        default:
+          $ref: '#/components/responses/OmittedBody'
+  # Nothing here permits null in a body the JSON call can read, or the call is not a JSON call.
+  /control/default-error:
+    get:
+      tags: [media]
+      operationId: getDefaultError
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Other'
+                  - type: 'null'
+  /control/later-text-without-schema:
+    get:
+      tags: [media]
+      operationId: getLaterTextWithoutSchema
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: Plain text without a schema
+          content:
+            text/plain: {}
+  /control/later-xml-nullable:
+    get:
+      tags: [media]
+      operationId: getLaterXmlNullable
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '201':
+          description: XML cannot hold the JSON value null
+          content:
+            application/xml:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Payload'
+                  - type: 'null'
+  /control/nullable-error-range:
+    get:
+      tags: [media]
+      operationId: getNullableErrorRange
+      responses:
+        '200':
+          $ref: '#/components/responses/PayloadBody'
+        '400':
+          description: Error
+          content:
+            '*/*': {}
+  /control/binary-first:
+    get:
+      tags: [media]
+      operationId: getBinaryFirst
+      responses:
+        '200':
+          description: A binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /control/referenced-binary-first:
+    get:
+      tags: [media]
+      operationId: getReferencedBinaryFirst
+      responses:
+        '200':
+          description: A referenced binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                $ref: '#/components/schemas/BinaryFile'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /control/aliased-binary-first:
+    get:
+      tags: [media]
+      operationId: getAliasedBinaryFirst
+      responses:
+        '200':
+          description: A binary first entry behind a chain of references keeps the Blob overload
+          content:
+            application/pdf:
+              schema:
+                $ref: '#/components/schemas/BinaryAlias'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+        '204':
+          description: No body
+  /control/nullable-binary-first:
+    get:
+      tags: [media]
+      operationId: getNullableBinaryFirst
+      responses:
+        '200':
+          description: A nullable binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/FileData'
+                  - type: 'null'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payload'
+  /control/nullable-one-of-binary-first:
+    get:
+      tags: [media]
+      operationId: getNullableOneOfBinaryFirst
+      responses:
+        '200':
+          description: A nullable oneOf binary first entry keeps the Blob overload
+          content:
+            application/octet-stream:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/FileData'
+                  - type: 'null'
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Other'
+  /control/text-before-wildcard-binary:
+    get:
+      tags: [media]
+      operationId: getTextBeforeWildcardBinary
+      responses:
+        '200':
+          description: A binary schema under a media range is a file, so it does not move before the text entry
+          content:
+            text/plain:
+              schema:
+                type: string
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /control/empty-before-wildcard-binary:
+    get:
+      tags: [media]
+      operationId: getEmptyBeforeWildcardBinary
+      responses:
+        '200':
+          description: No body
+        '201':
+          description: A file under a media range is no body type for the JSON call
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /control/text-only-before-empty:
+    get:
+      tags: [media]
+      operationId: getTextOnlyBeforeEmpty
+      responses:
+        '200':
+          description: Text only keeps the text overload
+          content:
+            text/plain:
+              schema:
+                type: string
+        '204':
+          description: No body
+components:
+  responses:
+    PayloadBody:
+      description: Payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Payload'
+    OmittedBody:
+      description: JSON content with no schema permits any JSON value, including null
+      content:
+        application/json: {}
+  schemas:
+    Payload:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+    Other:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    BinaryFile:
+      type: string
+      format: binary
+    BinaryAlias:
+      $ref: '#/components/schemas/BinaryFile'
+    # Only the nullable compositions use this schema: the core types a reference differently once a nullable
+    # composition elsewhere refers to the same binary schema.
+    FileData:
+      type: string
+      format: binary

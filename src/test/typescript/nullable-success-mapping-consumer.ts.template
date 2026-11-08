@@ -1,0 +1,61 @@
+import type { Observable } from 'rxjs';
+import type { MappedApi } from './api/mapped-api';
+
+type Emission<T> = T extends Observable<infer V> ? V : never;
+type Result<K extends keyof MappedApi> = MappedApi[K] extends (...args: never[]) => infer R ? Emission<R> : never;
+type IsAny<T> = 0 extends (1 & T) ? true : false;
+type Equal<A, B> = IsAny<A> extends true ? false :
+    (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+
+export type ServiceContracts = [
+    Assert<Equal<Result<'getMixed'>, (() => string) | null>>,
+    Assert<Equal<Result<'getNullable'>, (() => string) | null>>,
+    Assert<Equal<Result<'getHeader'>, @HEADER_FUNCTION@>>,
+    Assert<Equal<Result<'runNonNull'>, () => string>>
+];
+
+export const missingCallback: Result<'getMixed'> = null;
+export const nullableCallback: Result<'getNullable'> = null;
+export const callback: Result<'getMixed'> = () => 'ready';
+// @ts-expect-error Observable emissions do not gain the resource's undefined state.
+export const undefinedCallback: Result<'getMixed'> = undefined;
+// @ts-expect-error The function's return value remains non-null.
+export const nullableReturn: Result<'getMixed'> = () => null;
+
+export function checkedCallback(value: Result<'getMixed'>): string {
+    // @ts-expect-error The response itself requires a null check before invocation.
+    value();
+    if (value === null) return 'absent';
+    return value();
+}
+
+// HEADERS_START
+import type { HttpResponse } from '@angular/common/http';
+export type FullBodyContract = Assert<Equal<Result<'getHeader'>['body'], (() => string) | null>>;
+export function checkedResponse(response: Result<'getHeader'>): string {
+    // @ts-expect-error HttpResponse.body includes null even when its generic is a function type.
+    response.body();
+    if (response.body === null) return 'absent';
+    return response.body();
+}
+// HEADERS_END
+
+// RESOURCES_START
+import type { HttpResourceRef } from '@angular/common/http';
+import * as resources from '@RESOURCE_MODULE@';
+type Value<K extends keyof typeof resources> = (typeof resources)[K] extends (...args: never[]) => HttpResourceRef<infer V> ? V : never;
+export type ResourceContracts = [
+    Assert<Equal<Value<'getMixedResource'>, (() => string) | null | undefined>>,
+    Assert<Equal<Value<'getNullableResource'>, (() => string) | null | undefined>>,
+    Assert<Equal<Value<'getHeaderResource'>, (() => string) | null | undefined>>
+];
+export function checkedResource(resource: ReturnType<typeof resources.getMixedResource>): string {
+    const value = resource.value();
+    if (value === undefined) return 'loading';
+    // @ts-expect-error Excluding undefined does not exclude a successful null response.
+    value();
+    if (value === null) return 'absent';
+    return value();
+}
+// RESOURCES_END
