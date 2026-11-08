@@ -210,6 +210,15 @@ class NullableSuccessResponsesTest {
                 contains(body(api, operation + "()", "\n    }"), "{ responseType: 'blob' }");
                 contains(resources, operation + "Resource(): HttpResourceRef<Blob | undefined>");
             }
+            // A binary schema under a media range is a file: it neither moves before a text entry nor becomes the
+            // body type of a JSON call.
+            contains(api, "getTextBeforeWildcardBinary(): Observable<string>");
+            contains(body(api, "getTextBeforeWildcardBinary()", "\n    }"), "return this.http.get<string>(url);");
+            contains(resources, "getTextBeforeWildcardBinaryResource(): HttpResourceRef<string | undefined>");
+            contains(api, "getEmptyBeforeWildcardBinary(): Observable<HttpResponse<void>>");
+            contains(body(api, "getEmptyBeforeWildcardBinary()", "\n    }"),
+                    "return this.http.get<void>(url, { observe: 'response' });");
+            contains(resources, "getEmptyBeforeWildcardBinaryResource(): HttpResourceRef<unknown | undefined>");
             contains(api, "getTextOnlyBeforeEmpty(): Observable<string>");
             contains(body(api, "getTextOnlyBeforeEmpty()", "\n    }"), "{ responseType: 'text' }");
             contains(resources, "getTextOnlyBeforeEmptyResource(): HttpResourceRef<string | undefined>");

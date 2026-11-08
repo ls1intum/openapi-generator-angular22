@@ -19,7 +19,6 @@ import java.util.Comparator;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Predicate;
@@ -92,7 +91,8 @@ record ResponseTypes(String effective, String body) {
      * its first entry. The generated call parses JSON and Angular's default Accept header prefers it, so the type must
      * not depend on declaration order. Called on the normalized operation just before the core types it, so that
      * {@code blob} can ask the core itself: a first entry it types as a Blob stays, since it selects the Blob overload
-     * rather than a JSON call, whether its schema is inline, referenced or nullable.
+     * rather than a JSON call, whether its schema is inline, referenced or nullable. Nor does an entry the core types
+     * as a Blob move forward under a media range such as {@code *}{@code /*}: it is a file, not a JSON body.
      */
     static void preferJsonContent(OpenAPI api, Operation source, Predicate<Schema<?>> blob) {
         successes(api, source).values().forEach(response -> preferJsonContent(response.getContent(), blob));
@@ -109,15 +109,19 @@ record ResponseTypes(String effective, String body) {
         Map<String, MediaType> declared = new LinkedHashMap<>(content);
         content.clear();
         // A stable sort: exact JSON media types, then ranges that include JSON, then everything else.
-        declared.keySet().stream().sorted(Comparator.comparingInt(ResponseTypes::jsonPreference))
-                .forEach(mediaType -> content.put(mediaType, declared.get(mediaType)));
+        declared.entrySet().stream().sorted(Comparator.comparingInt(entry -> jsonPreference(entry, blob)))
+                .forEach(entry -> content.put(entry.getKey(), entry.getValue()));
     }
 
-    private static int jsonPreference(String mediaType) {
-        if (TypeScriptSnippets.jsonMediaType(mediaType) != null) {
+    private static int jsonPreference(Map.Entry<String, MediaType> entry, Predicate<Schema<?>> blob) {
+        Schema<?> schema = entry.getValue().getSchema();
+        if (schema != null && blob.test(schema)) {
+            return 2;
+        }
+        if (TypeScriptSnippets.jsonMediaType(entry.getKey()) != null) {
             return 0;
         }
-        return TypeScriptSnippets.acceptsJson(mediaType) ? 1 : 2;
+        return TypeScriptSnippets.acceptsJson(entry.getKey()) ? 1 : 2;
     }
 
     /** Null evidence from every readable body of every success, without forming a union of their DTO body types. */
@@ -147,7 +151,8 @@ record ResponseTypes(String effective, String body) {
     /**
      * The body type of a JSON call when the core selected a response without a type. A selected body without a schema
      * may hold any JSON value. A selected bodyless response defers to the lowest success with a type, then to a
-     * success without a schema. Returns null when no success documents a body the call can read.
+     * success without a schema. A success the core types as a file is not a body the JSON call can read, even under a
+     * media range. Returns null when no success documents a body the call can read.
      */
     private static String recoveredBodyType(Map<String, ApiResponse> successes, CodegenOperation op) {
         if (successes.isEmpty()) {
@@ -160,7 +165,7 @@ record ResponseTypes(String effective, String body) {
                 .filter(entry -> jsonContent(entry.getValue()) != null && jsonContent(entry.getValue()).getSchema() != null)
                 .flatMap(entry -> op.responses.stream().filter(response -> response.code.equals(entry.getKey())))
                 .map(response -> response.dataType)
-                .filter(Objects::nonNull)
+                .filter(type -> type != null && !TypeScriptSnippets.isBinaryType(type))
                 .findFirst()
                 .orElse(successes.values().stream().anyMatch(ResponseTypes::hasNoSchema) ? UNKNOWN : null);
     }

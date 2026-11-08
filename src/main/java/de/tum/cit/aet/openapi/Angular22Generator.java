@@ -48,7 +48,8 @@ import java.util.stream.Collectors;
  *   <li>{@link #processOpenAPI(OpenAPI)} &mdash; Scans paths to determine which tags need resource files.</li>
  *   <li>{@link #postProcessAllModels(Map)} &mdash; Marks models as readonly or mutable, and requires the properties
  *       a subtype restates when its parent requires them.</li>
- *   <li>{@link #fromOperation(String, String, Operation, List)} &mdash; Retains normalized JSON success nullability.</li>
+ *   <li>{@link #fromOperation(String, String, Operation, List)} &mdash; Puts the JSON media types of each success first
+ *       and retains normalized JSON success nullability.</li>
  *   <li>{@link #postProcessOperationsWithModels(OperationsMap, List)} &mdash; Builds the HttpClient calls,
  *       resource functions and URL templates, and collects imports.</li>
  * </ol>
@@ -577,7 +578,10 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
     // 5) postProcessOperationsWithModels &mdash; Build calls, resources and URL templates, collect imports
     // =============================================================================================
 
-    /** Retains normalized success-body metadata next to the parent's selected response type and imports. */
+    /**
+     * Puts the JSON media types of each success first, which the parent then types the operation from, and retains
+     * normalized success-body metadata next to its selected response type and imports.
+     */
     @Override
     public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
         // Ask the core how it types a response's first entry, as in handleMethodResponse, rather than re-deriving it.

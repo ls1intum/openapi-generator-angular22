@@ -421,7 +421,7 @@ final class TypeScriptSnippets {
                 || Arrays.stream(contentType.split(",")).map(String::strip).anyMatch(type -> JSON_MEDIA_RANGE.matcher(type).matches());
     }
 
-    private static boolean isBinaryType(String dataType) {
+    static boolean isBinaryType(String dataType) {
         return "Blob".equals(dataType) || "File".equals(dataType);
     }
 

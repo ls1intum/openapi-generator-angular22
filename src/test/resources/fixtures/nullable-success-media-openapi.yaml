@@ -406,6 +406,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Other'
+  /control/text-before-wildcard-binary:
+    get:
+      tags: [media]
+      operationId: getTextBeforeWildcardBinary
+      responses:
+        '200':
+          description: A binary schema under a media range is a file, so it does not move before the text entry
+          content:
+            text/plain:
+              schema:
+                type: string
+            '*/*':
+              schema:
+                type: string
+                format: binary
+  /control/empty-before-wildcard-binary:
+    get:
+      tags: [media]
+      operationId: getEmptyBeforeWildcardBinary
+      responses:
+        '200':
+          description: No body
+        '201':
+          description: A file under a media range is no body type for the JSON call
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
   /control/text-only-before-empty:
     get:
       tags: [media]
