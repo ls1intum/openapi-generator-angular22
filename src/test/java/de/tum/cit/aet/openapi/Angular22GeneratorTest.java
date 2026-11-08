@@ -106,6 +106,23 @@ class Angular22GeneratorTest {
     }
 
     @Test
+    void sendsUrlEncodedFormsAsAStringWithTheirMediaType() throws IOException {
+        generateFixture("fixtures/url-encoded-form-openapi.yaml", Map.of());
+
+        String api = Files.readString(tempDir.resolve("api/login-api.ts"));
+        assertContains(api, "import { appendQueryParam } from './query-params';");
+        // FormData would make Angular send multipart/form-data, which a form login filter does not read.
+        assertFalse(api.contains("FormData"));
+        assertContains(api, "const formBody = new URLSearchParams();");
+        assertContains(api, "appendQueryParam(formBody, 'id_token', idToken);");
+        assertContains(api, "appendQueryParam(formBody, 'joined', joined, 'form', false);");
+        assertContains(api, "appendQueryParam(formBody, 'filter', filter, 'deepObject', false);");
+        assertContains(api, "appendQueryParam(formBody, 'piped', piped, 'pipeDelimited', false);");
+        assertContains(api, "return this.http.post<LoginResult>(url, formBody.toString(), { headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' } });");
+        assertContains(api, "return this.http.post<void>(url, formBody.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });");
+    }
+
+    @Test
     void passesDeleteRequestBodiesInTheOptionsObject() throws IOException {
         generateFixture("fixtures/delete-body-openapi.yaml", Map.of());
 

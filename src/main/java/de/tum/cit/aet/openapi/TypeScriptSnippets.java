@@ -5,6 +5,7 @@
 package de.tum.cit.aet.openapi;
 
 import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import io.swagger.v3.oas.models.media.Encoding;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
@@ -29,6 +30,7 @@ final class TypeScriptSnippets {
 
     /** TypeScript types that {@code String()} turns into a form field value without losing information. */
     private static final Set<String> TS_SCALAR_TYPES = Set.of("string", "number", "boolean");
+    private static final String URL_ENCODED_FORM = "application/x-www-form-urlencoded";
     private static final Set<String> QUERY_STYLES = Set.of("form", "spaceDelimited", "pipeDelimited", "deepObject");
     private static final Pattern JSON_MEDIA_TYPE = Pattern.compile("(?i)application/([^;]+\\+)?json(\\s*;.*)?");
     private static final Pattern JSON_MEDIA_RANGE = Pattern.compile("(?i)(\\*|application)/\\*(\\s*;.*)?");
@@ -176,6 +178,22 @@ final class TypeScriptSnippets {
         return "form".equals(style) && param.isExplode ? "" : ", " + stringLiteral(style) + ", " + param.isExplode;
     }
 
+    /**
+     * Returns the arguments that pass a URL-encoded form field's style and explode to {@code appendQueryParam}: those
+     * of its {@code encoding} entry, or nothing for the default, form with explode. The parser accepts only the styles
+     * OpenAPI allows in a form, and fills in form for an entry without one, so an entry's {@code contentType} cannot
+     * be told apart from an explicit form style and is not used.
+     */
+    static String formStyleArguments(Encoding encoding) {
+        if (encoding == null) {
+            return "";
+        }
+        String style = encoding.getStyle() != null ? encoding.getStyle().toString() : "form";
+        // OpenAPI explodes a form field by default, and no other style.
+        boolean explode = encoding.getExplode() != null ? encoding.getExplode() : "form".equals(style);
+        return "form".equals(style) && explode ? "" : ", " + stringLiteral(style) + ", " + explode;
+    }
+
     static String paramsInterfaceName(CodegenOperation op) {
         return Names.toPascalCase(op.operationId) + "Params";
     }
@@ -218,8 +236,11 @@ final class TypeScriptSnippets {
      * @param observeResponse whether the call observes the full response, see {@link #observesResponse}
      */
     static void buildHttpCall(CodegenOperation op, ResponseKind response, boolean observeResponse) {
+        boolean urlEncoded = isUrlEncodedForm(op);
         String payload = null;
-        if (op.getHasFormParams()) {
+        if (urlEncoded) {
+            payload = "formBody.toString()";
+        } else if (op.getHasFormParams()) {
             payload = "formData";
         } else if (op.bodyParam != null) {
             payload = op.bodyParam.paramName;
@@ -238,7 +259,11 @@ final class TypeScriptSnippets {
         } else if (op.isBodyAllowed()) {
             args.add("null");
         }
-        if (op.getHasHeaderParams()) {
+        if (urlEncoded) {
+            // Angular labels a string body text/plain, so a form body needs its media type named.
+            String contentType = "'Content-Type': " + stringLiteral(URL_ENCODED_FORM);
+            options.add(op.getHasHeaderParams() ? "headers: { ...headers, " + contentType + " }" : "headers: { " + contentType + " }");
+        } else if (op.getHasHeaderParams()) {
             options.add("headers");
         }
         options.addAll(switch (response) {
@@ -339,9 +364,28 @@ final class TypeScriptSnippets {
      * {@code application/json}, an array whole and with its nulls, which is what Spring's {@code @RequestPart}
      * expects for a DTO.</p>
      *
+     * <p>A URL-encoded body instead goes through {@code appendQueryParam} into a {@code URLSearchParams}, since OpenAPI
+     * serializes its fields by the query rules. Each field takes the style and explode of its {@code encoding} entry,
+     * or form with explode by default.</p>
+     *
      * @param op the operation whose form parameters should be processed
      */
     static void processFormParameters(CodegenOperation op) {
+        if (isUrlEncodedForm(op)) {
+            op.vendorExtensions.put("x-url-encoded", true);
+            for (CodegenParameter param : op.formParams) {
+                param.vendorExtensions.put("x-wire-name-literal", stringLiteral(param.baseName));
+                String value = param.paramName;
+                if (param.isDate && "Date".equals(param.dataType)) {
+                    value += "?.toISOString().slice(0, 10)";
+                } else if (param.isArray && param.items != null && param.items.isDate && "Date".equals(param.items.dataType)) {
+                    value += " == null ? " + param.paramName + " : Array.from(" + param.paramName
+                            + ", item => item?.toISOString().slice(0, 10))";
+                }
+                param.vendorExtensions.put("x-form-value", value);
+            }
+            return;
+        }
         for (CodegenParameter param : op.formParams) {
             String name = param.paramName;
             String key = stringLiteral(param.baseName);
@@ -419,6 +463,18 @@ final class TypeScriptSnippets {
     static boolean acceptsJson(String contentType) {
         return jsonMediaType(contentType) != null
                 || Arrays.stream(contentType.split(",")).map(String::strip).anyMatch(type -> JSON_MEDIA_RANGE.matcher(type).matches());
+    }
+
+    /**
+     * Whether an operation sends its form fields as {@code application/x-www-form-urlencoded} rather than as
+     * {@code multipart/form-data}. The parent marks a form body multipart only when it declares a multipart media
+     * type, so every other form body is URL-encoded.
+     *
+     * @param op the operation
+     * @return {@code true} if the operation has form fields and no multipart body
+     */
+    static boolean isUrlEncodedForm(CodegenOperation op) {
+        return op.getHasFormParams() && !op.isMultipart;
     }
 
     static boolean isBinaryType(String dataType) {

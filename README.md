@@ -157,8 +157,8 @@ export function getCourseResource(courseId: Signal<number | undefined> | number)
 
 ### Query Parameters
 
-`api/query-params.ts` holds `appendQueryParam`, which every API and resources file with query parameters imports. It
-sends each parameter in its declared `style` and `explode`:
+`api/query-params.ts` holds `appendQueryParam`, which service and resource files with query parameters and service files
+with URL-encoded forms import. It sends each parameter in its declared `style` and `explode`:
 
 - `form` with explode, the default, repeats the key of an array or set and sends an object as one key per property.
   A nested object gets dotted keys (`range.min=1`), which is how Spring binds a query DTO, since OpenAPI defines no
@@ -193,6 +193,15 @@ encoding:
   tags:
     contentType: application/json
 ```
+
+### URL-Encoded Form Bodies
+
+A request body of `application/x-www-form-urlencoded` goes out as a URL-encoded string with that media type, not as
+`FormData`, which Angular would send as `multipart/form-data`. Each field follows the query rules above through the
+same helper: the style and `explode` of its `encoding` entry, or form with `explode` by default. Null and undefined
+fields are left out, and an empty string is sent. Date-only fields mapped to `Date` use `YYYY-MM-DD`, including array
+items. The parser fills in the form style for an `encoding` entry without one, so a `contentType` in an entry has no effect. Declared header parameters are sent next to the form's
+`Content-Type`.
 
 ## Installation
 

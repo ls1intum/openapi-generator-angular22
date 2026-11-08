@@ -1,0 +1,109 @@
+openapi: 3.1.1
+info:
+  title: URL-encoded form API
+  version: 1.0.0
+tags:
+  - name: login
+paths:
+  /api/login:
+    post:
+      tags:
+        - login
+      operationId: login
+      parameters:
+        - name: X-Trace
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - state
+                - id_token
+              properties:
+                state:
+                  type: string
+                id_token:
+                  type: string
+                remember:
+                  type: boolean
+                attempt:
+                  type: integer
+                  format: int32
+                scopes:
+                  type: array
+                  items:
+                    type: string
+                joined:
+                  type: array
+                  items:
+                    type: string
+                since:
+                  type: string
+                  format: date-time
+                filter:
+                  type: object
+                  properties:
+                    level:
+                      type: integer
+                piped:
+                  type: array
+                  items:
+                    type: string
+                defaultObject:
+                  type: object
+                  properties:
+                    count:
+                      type: integer
+                day:
+                  type: string
+                  format: date
+                holidays:
+                  type: array
+                  items:
+                    type: string
+                    format: date
+            encoding:
+              joined:
+                style: form
+                explode: false
+              filter:
+                style: deepObject
+              piped:
+                style: pipeDelimited
+
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResult'
+  /api/logout:
+    post:
+      tags:
+        - login
+      operationId: logout
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '204':
+          description: No Content
+components:
+  schemas:
+    LoginResult:
+      type: object
+      properties:
+        targetLink:
+          type: string

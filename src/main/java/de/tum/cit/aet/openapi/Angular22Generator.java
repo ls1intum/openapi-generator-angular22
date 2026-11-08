@@ -6,7 +6,10 @@ package de.tum.cit.aet.openapi;
 
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.media.Encoding;
+import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.*;
 import org.openapitools.codegen.languages.TypeScriptAngularClientCodegen;
@@ -38,8 +41,8 @@ import java.util.stream.Collectors;
  *       plus const enum objects for runtime enum access (e.g., {@code JobDetailDTOStateEnum.Draft}).</li>
  * </ol>
  *
- * <p>One {@code api/query-params.ts} per client holds {@code appendQueryParam}, which the API and resource files
- * with query parameters import.</p>
+ * <p>One {@code api/query-params.ts} per client holds {@code appendQueryParam}, which service and resource files with
+ * query parameters and service files with URL-encoded forms import.</p>
  *
  * <p><b>Generation Pipeline</b></p>
  * The generator hooks into five lifecycle stages of the OpenAPI Generator framework:
@@ -67,7 +70,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
 
 
     /** Identifiers that a generated service method or resource function declares or calls next to its parameters. */
-    private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "headers",
+    private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "formBody", "headers",
             "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject");
 
     /** Generator name used by the OpenAPI Generator SPI and CLI. */
@@ -589,6 +592,16 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
                 schema -> "Blob".equals(fromProperty("response", unaliasSchema(schema), false).dataType));
         CodegenOperation result = super.fromOperation(path, httpMethod, operation, servers);
         ResponseTypes.capture(openAPI, operation, result);
+        if (TypeScriptSnippets.isUrlEncodedForm(result)) {
+            RequestBody body = ModelUtils.getReferencedRequestBody(openAPI, operation.getRequestBody());
+            // Upstream lowercases the key before lookup, losing entries such as charset=UTF-8.
+            MediaType mediaType = body.getContent().get(getContentType(body));
+            Map<String, Encoding> encodings = mediaType.getEncoding();
+            for (CodegenParameter parameter : result.formParams) {
+                Encoding encoding = encodings == null ? null : encodings.get(parameter.baseName);
+                parameter.vendorExtensions.put("x-query-style-args", TypeScriptSnippets.formStyleArguments(encoding));
+            }
+        }
         return result;
     }
 
@@ -639,7 +652,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         operations.put("hasInlineResources", useHttpResource && !separateResources && !getOperations.isEmpty());
         // The service class holds every operation, including the GETs of the inline resources in the same file;
         // the separate resources file holds only the GETs.
-        operations.put("hasQueryParams", ops.stream().anyMatch(op -> !op.queryParams.isEmpty()));
+        // URL-encoded form fields follow the query rules, so they go through the same helper.
+        operations.put("usesQueryHelper", ops.stream().anyMatch(op -> !op.queryParams.isEmpty() || TypeScriptSnippets.isUrlEncodedForm(op)));
         operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));
         operations.put("usesHttpResponse", ops.stream().anyMatch(op -> TypeScriptSnippets.observesResponse(op, observeResponseHeaders)));
         operations.put("hasSignalArguments", getOperations.stream()
