@@ -62,7 +62,7 @@ export class {{classname}} {
 {{#vendorExtensions.x-url-encoded}}
         const formBody = new URLSearchParams();
 {{#formParams}}
-        appendQueryParam(formBody, {{{vendorExtensions.x-wire-name-literal}}}, {{paramName}}{{{vendorExtensions.x-query-style-args}}});
+        appendQueryParam(formBody, {{{vendorExtensions.x-wire-name-literal}}}, {{{vendorExtensions.x-form-value}}}{{{vendorExtensions.x-query-style-args}}});
 {{/formParams}}
 {{/vendorExtensions.x-url-encoded}}
 {{^vendorExtensions.x-url-encoded}}

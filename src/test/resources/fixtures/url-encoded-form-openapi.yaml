@@ -60,6 +60,14 @@ paths:
                   properties:
                     count:
                       type: integer
+                day:
+                  type: string
+                  format: date
+                holidays:
+                  type: array
+                  items:
+                    type: string
+                    format: date
             encoding:
               joined:
                 style: form

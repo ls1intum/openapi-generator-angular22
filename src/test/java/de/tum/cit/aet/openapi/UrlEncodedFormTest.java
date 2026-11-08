@@ -48,7 +48,8 @@ class UrlEncodedFormTest {
                 .setGeneratorName(Angular22Generator.GENERATOR_NAME)
                 .setInputSpec(input.toString())
                 .setOutputDir(tempDir.toString())
-                .addTypeMapping("DateTime", "Date");
+                .addTypeMapping("DateTime", "Date")
+                .addTypeMapping("date", "Date");
         new DefaultGenerator().opts(configurator.toClientOptInput()).generate();
 
         NodeProcess.assertSucceeds(Path.of("src/test/typescript"), "A URL-encoded form has the wrong body or headers",

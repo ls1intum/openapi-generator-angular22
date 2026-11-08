@@ -375,6 +375,14 @@ final class TypeScriptSnippets {
             op.vendorExtensions.put("x-url-encoded", true);
             for (CodegenParameter param : op.formParams) {
                 param.vendorExtensions.put("x-wire-name-literal", stringLiteral(param.baseName));
+                String value = param.paramName;
+                if (param.isDate && "Date".equals(param.dataType)) {
+                    value += "?.toISOString().slice(0, 10)";
+                } else if (param.isArray && param.items != null && param.items.isDate && "Date".equals(param.items.dataType)) {
+                    value += " == null ? " + param.paramName + " : Array.from(" + param.paramName
+                            + ", item => item?.toISOString().slice(0, 10))";
+                }
+                param.vendorExtensions.put("x-form-value", value);
             }
             return;
         }

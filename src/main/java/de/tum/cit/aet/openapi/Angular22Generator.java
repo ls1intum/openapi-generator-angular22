@@ -652,7 +652,6 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         operations.put("hasInlineResources", useHttpResource && !separateResources && !getOperations.isEmpty());
         // The service class holds every operation, including the GETs of the inline resources in the same file;
         // the separate resources file holds only the GETs.
-        operations.put("hasQueryParams", ops.stream().anyMatch(op -> !op.queryParams.isEmpty()));
         // URL-encoded form fields follow the query rules, so they go through the same helper.
         operations.put("usesQueryHelper", ops.stream().anyMatch(op -> !op.queryParams.isEmpty() || TypeScriptSnippets.isUrlEncodedForm(op)));
         operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));
