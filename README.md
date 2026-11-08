@@ -97,6 +97,9 @@ When every object branch already declares the schema's properties, the union sta
 itself, since an interface cannot extend a union.
 
 ### API Service (Mutations)
+
+The example omits how generated methods filter request options; they forward only `context` and `headers`.
+
 ```typescript
 @Injectable({ providedIn: 'root' })
 export class CourseApi {

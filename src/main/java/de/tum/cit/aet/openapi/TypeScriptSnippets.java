@@ -30,7 +30,6 @@ final class TypeScriptSnippets {
 
     /** TypeScript types that {@code String()} turns into a form field value without losing information. */
     private static final Set<String> TS_SCALAR_TYPES = Set.of("string", "number", "boolean");
-    private static final String URL_ENCODED_FORM = "application/x-www-form-urlencoded";
     private static final Set<String> QUERY_STYLES = Set.of("form", "spaceDelimited", "pipeDelimited", "deepObject");
     private static final Pattern JSON_MEDIA_TYPE = Pattern.compile("(?i)application/([^;]+\\+)?json(\\s*;.*)?");
     private static final Pattern JSON_MEDIA_RANGE = Pattern.compile("(?i)(\\*|application)/\\*(\\s*;.*)?");
@@ -273,11 +272,12 @@ final class TypeScriptSnippets {
             options.add("observe: 'response'");
         }
         // Forward only the declared options; wider TypeScript values may carry unsupported HttpClient options.
-        String callerOptions = "...(options && { context: options.context, headers: options.headers })";
+        String callerOptions = "options && { ...(options.context !== undefined && { context: options.context }), "
+                + "...(options.headers !== undefined && { headers: options.headers }) }";
         if (options.isEmpty()) {
-            args.add("options && { context: options.context, headers: options.headers }");
+            args.add(callerOptions);
         } else {
-            args.add("{ " + callerOptions + ", " + String.join(", ", options) + " }");
+            args.add("{ ...(" + callerOptions + "), " + String.join(", ", options) + " }");
         }
 
         ResponseTypes types = ResponseTypes.of(op, response, "void");

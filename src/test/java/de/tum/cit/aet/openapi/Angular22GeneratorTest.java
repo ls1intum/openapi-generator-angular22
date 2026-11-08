@@ -31,10 +31,10 @@ class Angular22GeneratorTest {
         // GETs stay available as Observable methods next to the resources.
         assertContains(api, "getTutorialGroups(courseId: number, registered?: boolean, campus?: Array<string>, options?: import('./request-options').RequestOptions): Observable<Array<TutorialGroupDetailData>>");
         assertContains(api, "const url = `${this.basePath}/tutorialgroup/courses/${courseId}/tutorial-groups${queryString ? `?${queryString}` : ''}`;");
-        assertContains(api, "return this.http.post<TutorialGroupDetailData>(url, createOrUpdateTutorialGroupRequest, options && { context: options.context, headers: options.headers });");
-        assertContains(api, "return this.http.delete<void>(url, options && { context: options.context, headers: options.headers });");
-        assertContains(api, "return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), responseType: 'blob', observe: 'response' });");
-        assertContains(api, "return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), responseType: 'text' });");
+        assertContains(api, "return this.http.post<TutorialGroupDetailData>(url, createOrUpdateTutorialGroupRequest, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
+        assertContains(api, "return this.http.delete<void>(url, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
+        assertContains(api, "return this.http.get(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'blob', observe: 'response' });");
+        assertContains(api, "return this.http.get(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'text' });");
 
         String resources = Files.readString(tempDir.resolve("api/tutorial-group-resources.ts"));
         assertContains(resources, "export function getTutorialGroupsResource(courseId: Signal<number | undefined> | number, params?: Signal<GetTutorialGroupsParams>): HttpResourceRef<Array<TutorialGroupDetailData> | undefined>");
@@ -102,7 +102,7 @@ class Angular22GeneratorTest {
         assertContains(api, "formData.append('ratio', String(ratio));");
         assertContains(api, "formData.append('active', String(active));");
         assertContains(api, "formData.append('mode', String(mode));");
-        assertContains(api, "return this.http.post<CourseCreate>(url, formData, options && { context: options.context, headers: options.headers });");
+        assertContains(api, "return this.http.post<CourseCreate>(url, formData, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
     }
 
     @Test
@@ -119,8 +119,8 @@ class Angular22GeneratorTest {
         assertContains(api, "appendQueryParam(formBody, 'filter', filter, 'deepObject', false);");
         assertContains(api, "appendQueryParam(formBody, 'piped', piped, 'pipeDelimited', false);");
         assertContains(api, "headers['Content-Type'] = 'application/x-www-form-urlencoded';");
-        assertContains(api, "return this.http.post<LoginResult>(url, formBody.toString(), { ...(options && { context: options.context, headers: options.headers }), headers });");
-        assertContains(api, "return this.http.post<void>(url, formBody.toString(), { ...(options && { context: options.context, headers: options.headers }), headers });");
+        assertContains(api, "return this.http.post<LoginResult>(url, formBody.toString(), { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), headers });");
+        assertContains(api, "return this.http.post<void>(url, formBody.toString(), { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), headers });");
     }
 
     @Test
@@ -129,8 +129,8 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/user-api.ts"));
         // HttpClient.delete takes (url, options); a body passed as the second argument selects the wrong overload.
-        assertContains(api, "return this.http.delete<void>(url, { ...(options && { context: options.context, headers: options.headers }), body: bulkUserDeletionRequest });");
-        assertContains(api, "return this.http.delete<DeletionSummary>(url, { ...(options && { context: options.context, headers: options.headers }), body: permanentUserDeletionRequest });");
+        assertContains(api, "return this.http.delete<void>(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), body: bulkUserDeletionRequest });");
+        assertContains(api, "return this.http.delete<DeletionSummary>(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), body: permanentUserDeletionRequest });");
     }
 
     @Test
@@ -139,14 +139,14 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/programming-exercise-api.ts"));
         // A text/plain body is not JSON; without responseType: 'text' HttpClient fails to parse it.
-        assertContains(api, "return this.http.put(url, generateTestsRequest, { ...(options && { context: options.context, headers: options.headers }), responseType: 'text' });");
-        assertContains(api, "return this.http.post(url, null, { ...(options && { context: options.context, headers: options.headers }), responseType: 'text' });");
-        assertContains(api, "return this.http.delete(url, { ...(options && { context: options.context, headers: options.headers }), body: revokeTokenRequest, responseType: 'text' });");
+        assertContains(api, "return this.http.put(url, generateTestsRequest, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'text' });");
+        assertContains(api, "return this.http.post(url, null, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'text' });");
+        assertContains(api, "return this.http.delete(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), body: revokeTokenRequest, responseType: 'text' });");
         // A JSON string keeps the JSON parser.
         assertContains(api, """
                     renameExercise(exerciseId: number, options?: import('./request-options').RequestOptions): Observable<string> {
                         const url = `${this.basePath}/api/programming-exercises/${exerciseId}/name`;
-                        return this.http.post<string>(url, null, options && { context: options.context, headers: options.headers });
+                        return this.http.post<string>(url, null, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });
                 """);
     }
 
@@ -158,27 +158,27 @@ class Angular22GeneratorTest {
         assertContains(api, """
                     getQuestions(page?: number, options?: import('./request-options').RequestOptions): Observable<HttpResponse<Array<Question>>> {
                 """);
-        assertContains(api, "return this.http.get<Array<Question>>(url, { ...(options && { context: options.context, headers: options.headers }), observe: 'response' });");
+        assertContains(api, "return this.http.get<Array<Question>>(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), observe: 'response' });");
         // A text body keeps its responseType next to observe, or HttpClient parses it as JSON.
         assertContains(api, """
                     exportQuestions(options?: import('./request-options').RequestOptions): Observable<HttpResponse<string>> {
                         const url = `${this.basePath}/api/questions/export`;
-                        return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), responseType: 'text', observe: 'response' });
+                        return this.http.get(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'text', observe: 'response' });
                 """);
         // A 201 with a Location header and no body.
         assertContains(api, """
                     createQuestion(question: Question, options?: import('./request-options').RequestOptions): Observable<HttpResponse<void>> {
                         const url = `${this.basePath}/api/questions`;
-                        return this.http.post<void>(url, question, { ...(options && { context: options.context, headers: options.headers }), observe: 'response' });
+                        return this.http.post<void>(url, question, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), observe: 'response' });
                 """);
-        assertContains(api, "return this.http.delete<number>(url, { ...(options && { context: options.context, headers: options.headers }), body: requestBody, observe: 'response' });");
+        assertContains(api, "return this.http.delete<number>(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), body: requestBody, observe: 'response' });");
         // A file download observes the response anyway; observe appears once.
-        assertContains(api, "return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), responseType: 'blob', observe: 'response' });");
+        assertContains(api, "return this.http.get(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'blob', observe: 'response' });");
         // A header on an error response only: HttpErrorResponse already exposes it, so the body stays the result.
         assertContains(api, """
                     getQuestion(questionId: number, options?: import('./request-options').RequestOptions): Observable<Question> {
                         const url = `${this.basePath}/api/questions/${questionId}`;
-                        return this.http.get<Question>(url, options && { context: options.context, headers: options.headers });
+                        return this.http.get<Question>(url, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });
                 """);
     }
 
@@ -190,8 +190,8 @@ class Angular22GeneratorTest {
         assertContains(api, """
                     getQuestions(page?: number, options?: import('./request-options').RequestOptions): Observable<Array<Question>> {
                 """);
-        assertContains(api, "return this.http.get<Array<Question>>(url, options && { context: options.context, headers: options.headers });");
-        assertContains(api, "return this.http.post<void>(url, question, options && { context: options.context, headers: options.headers });");
+        assertContains(api, "return this.http.get<Array<Question>>(url, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
+        assertContains(api, "return this.http.post<void>(url, question, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
     }
 
     @Test
@@ -218,11 +218,11 @@ class Angular22GeneratorTest {
                             });
                             headers['X-Trace-Id'] = String(xTraceId);
                         }
-                        return this.http.get<RepositoryFiles>(url, { ...(options && { context: options.context, headers: options.headers }), headers });
+                        return this.http.get<RepositoryFiles>(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), headers });
                 """);
-        assertContains(api, "return this.http.post<void>(url, repositoryFeedback, { ...(options && { context: options.context, headers: options.headers }), headers });");
-        assertContains(api, "return this.http.get(url, { ...(options && { context: options.context, headers: options.headers }), headers, responseType: 'text' });");
-        assertContains(api, "return this.http.get<RepositoryFiles>(url, options && { context: options.context, headers: options.headers });");
+        assertContains(api, "return this.http.post<void>(url, repositoryFeedback, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), headers });");
+        assertContains(api, "return this.http.get(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), headers, responseType: 'text' });");
+        assertContains(api, "return this.http.get<RepositoryFiles>(url, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
 
         String resources = Files.readString(tempDir.resolve("api/repository-resources.ts"));
         // Header values are function arguments like path parameters; an optional one stays optional only while
