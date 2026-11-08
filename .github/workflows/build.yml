@@ -24,6 +24,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     
+    - name: Test release metadata check
+      run: bash scripts/test-verify-release.sh
+
     - name: Build with Gradle
       run: ./gradlew build
     
@@ -51,6 +54,11 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     
+    - name: Verify release metadata
+      env:
+        RELEASE_TAG: ${{ github.ref_name }}
+      run: bash scripts/verify-release.sh "$RELEASE_TAG"
+
     - name: Publish to Maven Central
       # Uploads the signed artifacts to the Central Portal and (automaticRelease = true) releases them.
       # Central Portal auth comes from this repo's own secrets (a de.tum.cit.aet Central Portal user
@@ -67,4 +75,4 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: build/libs/*.jar
-        generate_release_notes: true
+        body_path: release-notes/${{ github.ref_name }}.md

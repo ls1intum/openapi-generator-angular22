@@ -5,7 +5,7 @@ any other project — then resolve it from a plain `mavenCentral()` repository, 
 
 ```kotlin
 repositories { mavenCentral() }
-dependencies { /* openapiGenerator | classpath */ "de.tum.cit.aet:openapi-generator-angular22:1.0.0" }
+dependencies { /* openapiGenerator | classpath */ "de.tum.cit.aet:openapi-generator-angular22:4.0.0" }
 ```
 
 Publishing is automated by [`.github/workflows/build.yml`](.github/workflows/build.yml): pushing a tag
@@ -61,16 +61,19 @@ The workflow maps these onto the Gradle properties the plugin reads
 
 ## Cutting a release
 
-1. Bump `version` in [`build.gradle.kts`](build.gradle.kts) (and the version references in
-   [`README.md`](README.md)) to the new release version, e.g. `1.2.0`. Use a non-`SNAPSHOT` version.
-2. Merge to `main`.
-3. Tag and push:
+1. Bump `version` in [`build.gradle.kts`](build.gradle.kts) and the version references in
+   [`README.md`](README.md). Use a non-`SNAPSHOT` version.
+2. Add `release-notes/v<version>.md` with the changes and migration steps. CI uses this file as the GitHub Release body.
+3. Run `./gradlew clean build generateExample --rerun-tasks`, `bash scripts/test-verify-release.sh` and
+   `bash scripts/verify-release.sh v<version>`. The release check requires non-empty notes and a tag that matches a
+   non-snapshot Gradle version.
+4. Merge to `main`, then tag and push:
    ```bash
-   git tag v1.2.0
-   git push origin v1.2.0
+   git tag v4.0.0
+   git push origin v4.0.0
    ```
-4. The `publish` job signs and uploads to the Central Portal and creates a GitHub Release. The artifact
-   appears on Maven Central within ~15–30 minutes (search index can lag a few hours).
+5. The `publish` job checks the tag and notes before it signs and uploads to the Central Portal and creates a GitHub
+   Release. The artifact appears on Maven Central within ~15–30 minutes (search index can lag a few hours).
 
 ## Releasing locally (fallback)
 
