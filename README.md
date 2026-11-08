@@ -214,12 +214,12 @@ Add to your `build.gradle.kts`:
 
 ```kotlin
 plugins {
-    id("org.openapi.generator") version "7.18.0"
+    id("org.openapi.generator") version "7.21.0"
 }
 
 dependencies {
     // Add as a dependency to the openapi generator
-    openapiGenerator("de.tum.cit.aet:openapi-generator-angular22:3.0.0")
+    openapiGenerator("de.tum.cit.aet:openapi-generator-angular22:4.0.0")
 }
 
 openApiGenerate {
@@ -240,12 +240,12 @@ Add to your `build.gradle` (Groovy DSL):
 
 ```groovy
 plugins {
-    id 'org.openapi.generator' version '7.18.0'
+    id 'org.openapi.generator' version '7.21.0'
 }
 
 dependencies {
     // Add as a dependency to the openapi generator
-    openapiGenerator 'de.tum.cit.aet:openapi-generator-angular22:3.0.0'
+    openapiGenerator 'de.tum.cit.aet:openapi-generator-angular22:4.0.0'
 }
 
 openApiGenerate {
@@ -267,7 +267,7 @@ openApiGenerate {
 <plugin>
     <groupId>org.openapitools</groupId>
     <artifactId>openapi-generator-maven-plugin</artifactId>
-    <version>7.18.0</version>
+    <version>7.21.0</version>
     <executions>
         <execution>
             <goals>
@@ -290,7 +290,7 @@ openApiGenerate {
         <dependency>
             <groupId>de.tum.cit.aet</groupId>
             <artifactId>openapi-generator-angular22</artifactId>
-            <version>3.0.0</version>
+            <version>4.0.0</version>
         </dependency>
     </dependencies>
 </plugin>
@@ -299,11 +299,12 @@ openApiGenerate {
 ### CLI
 
 ```bash
-# Download the generator JAR
-wget https://github.com/ls1intum/openapi-generator-angular22/releases/download/v1.0.0/openapi-generator-angular22-1.0.0.jar
+# Download the generator and OpenAPI Generator CLI JARs
+wget https://github.com/ls1intum/openapi-generator-angular22/releases/download/v4.0.0/openapi-generator-angular22-4.0.0.jar
+wget https://repo.maven.apache.org/maven2/org/openapitools/openapi-generator-cli/7.21.0/openapi-generator-cli-7.21.0.jar
 
 # Generate code
-java -cp openapi-generator-angular22-1.0.0.jar:openapi-generator-cli-7.18.0.jar \
+java -cp openapi-generator-angular22-4.0.0.jar:openapi-generator-cli-7.21.0.jar \
     org.openapitools.codegen.OpenAPIGenerator generate \
     -g angular22 \
     -i openapi.yaml \
