@@ -71,7 +71,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
 
     /** Identifiers that a generated service method or resource function declares or calls next to its parameters. */
     private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "formBody", "headers",
-            "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject");
+            "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject", "options");
 
     /** Generator name used by the OpenAPI Generator SPI and CLI. */
     public static final String GENERATOR_NAME = "angular22";
@@ -194,6 +194,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
 
         supportingFiles.clear();
         supportingFiles.add(new SupportingFile("query-params.mustache", "api", "query-params.ts"));
+        supportingFiles.add(new SupportingFile("request-options.mustache", "api", "request-options.ts"));
 
         if (additionalProperties.containsKey(USE_HTTP_RESOURCE)) {
             useHttpResource = Boolean.parseBoolean(additionalProperties.get(USE_HTTP_RESOURCE).toString());

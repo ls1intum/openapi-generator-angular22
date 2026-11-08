@@ -18,6 +18,7 @@ import { {{classname}} } from '../model/{{filename}}';
 {{#operations.usesQueryHelper}}
 import { appendQueryParam } from './query-params';
 {{/operations.usesQueryHelper}}
+import { RequestOptions } from './request-options';
 
 @Injectable({ providedIn: 'root' })
 export class {{classname}} {
@@ -32,8 +33,9 @@ export class {{classname}} {
 {{#allParams}}
      * @param {{paramName}} {{description}}
 {{/allParams}}
+     * @param options the HttpContext and extra headers of this request; a declared header parameter overrides a header of the same name
      */
-    {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/allParams}}): Observable<{{{vendorExtensions.x-observable-type}}}> {
+    {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}, {{/allParams}}options?: RequestOptions): Observable<{{{vendorExtensions.x-observable-type}}}> {
 {{#pathParams}}
 {{^vendorExtensions.x-is-numeric}}
         const {{vendorExtensions.x-path-name}} = encodeURIComponent(String({{paramName}}));

@@ -29,12 +29,12 @@ class Angular22GeneratorTest {
         assertContains(api, "import { TutorialGroupDetailData } from '../model/tutorial-group-detail-data';");
         assertContains(api, "import { CreateOrUpdateTutorialGroupRequest } from '../model/create-or-update-tutorial-group-request';");
         // GETs stay available as Observable methods next to the resources.
-        assertContains(api, "getTutorialGroups(courseId: number, registered?: boolean, campus?: Array<string>): Observable<Array<TutorialGroupDetailData>>");
+        assertContains(api, "getTutorialGroups(courseId: number, registered?: boolean, campus?: Array<string>, options?: RequestOptions): Observable<Array<TutorialGroupDetailData>>");
         assertContains(api, "const url = `${this.basePath}/tutorialgroup/courses/${courseId}/tutorial-groups${queryString ? `?${queryString}` : ''}`;");
-        assertContains(api, "return this.http.post<TutorialGroupDetailData>(url, createOrUpdateTutorialGroupRequest);");
-        assertContains(api, "return this.http.delete<void>(url);");
-        assertContains(api, "return this.http.get(url, { responseType: 'blob', observe: 'response' });");
-        assertContains(api, "return this.http.get(url, { responseType: 'text' });");
+        assertContains(api, "return this.http.post<TutorialGroupDetailData>(url, createOrUpdateTutorialGroupRequest, options);");
+        assertContains(api, "return this.http.delete<void>(url, options);");
+        assertContains(api, "return this.http.get(url, { ...options, responseType: 'blob', observe: 'response' });");
+        assertContains(api, "return this.http.get(url, { ...options, responseType: 'text' });");
 
         String resources = Files.readString(tempDir.resolve("api/tutorial-group-resources.ts"));
         assertContains(resources, "export function getTutorialGroupsResource(courseId: Signal<number | undefined> | number, params?: Signal<GetTutorialGroupsParams>): HttpResourceRef<Array<TutorialGroupDetailData> | undefined>");
@@ -64,7 +64,7 @@ class Angular22GeneratorTest {
 
         assertFalse(Files.exists(tempDir.resolve("api/tutorial-group-resources.ts")));
         String api = Files.readString(tempDir.resolve("api/tutorial-group-api.ts"));
-        assertContains(api, "getTutorialGroups(courseId: number, registered?: boolean, campus?: Array<string>): Observable<Array<TutorialGroupDetailData>>");
+        assertContains(api, "getTutorialGroups(courseId: number, registered?: boolean, campus?: Array<string>, options?: RequestOptions): Observable<Array<TutorialGroupDetailData>>");
         assertFalse(api.contains("httpResource"));
     }
 
@@ -102,7 +102,7 @@ class Angular22GeneratorTest {
         assertContains(api, "formData.append('ratio', String(ratio));");
         assertContains(api, "formData.append('active', String(active));");
         assertContains(api, "formData.append('mode', String(mode));");
-        assertContains(api, "return this.http.post<CourseCreate>(url, formData);");
+        assertContains(api, "return this.http.post<CourseCreate>(url, formData, options);");
     }
 
     @Test
@@ -128,8 +128,8 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/user-api.ts"));
         // HttpClient.delete takes (url, options); a body passed as the second argument selects the wrong overload.
-        assertContains(api, "return this.http.delete<void>(url, { body: bulkUserDeletionRequest });");
-        assertContains(api, "return this.http.delete<DeletionSummary>(url, { body: permanentUserDeletionRequest });");
+        assertContains(api, "return this.http.delete<void>(url, { ...options, body: bulkUserDeletionRequest });");
+        assertContains(api, "return this.http.delete<DeletionSummary>(url, { ...options, body: permanentUserDeletionRequest });");
     }
 
     @Test
@@ -138,14 +138,14 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/programming-exercise-api.ts"));
         // A text/plain body is not JSON; without responseType: 'text' HttpClient fails to parse it.
-        assertContains(api, "return this.http.put(url, generateTestsRequest, { responseType: 'text' });");
-        assertContains(api, "return this.http.post(url, null, { responseType: 'text' });");
-        assertContains(api, "return this.http.delete(url, { body: revokeTokenRequest, responseType: 'text' });");
+        assertContains(api, "return this.http.put(url, generateTestsRequest, { ...options, responseType: 'text' });");
+        assertContains(api, "return this.http.post(url, null, { ...options, responseType: 'text' });");
+        assertContains(api, "return this.http.delete(url, { ...options, body: revokeTokenRequest, responseType: 'text' });");
         // A JSON string keeps the JSON parser.
         assertContains(api, """
-                    renameExercise(exerciseId: number): Observable<string> {
+                    renameExercise(exerciseId: number, options?: RequestOptions): Observable<string> {
                         const url = `${this.basePath}/api/programming-exercises/${exerciseId}/name`;
-                        return this.http.post<string>(url, null);
+                        return this.http.post<string>(url, null, options);
                 """);
     }
 
@@ -155,29 +155,29 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/question-api.ts"));
         assertContains(api, """
-                    getQuestions(page?: number): Observable<HttpResponse<Array<Question>>> {
+                    getQuestions(page?: number, options?: RequestOptions): Observable<HttpResponse<Array<Question>>> {
                 """);
-        assertContains(api, "return this.http.get<Array<Question>>(url, { observe: 'response' });");
+        assertContains(api, "return this.http.get<Array<Question>>(url, { ...options, observe: 'response' });");
         // A text body keeps its responseType next to observe, or HttpClient parses it as JSON.
         assertContains(api, """
-                    exportQuestions(): Observable<HttpResponse<string>> {
+                    exportQuestions(options?: RequestOptions): Observable<HttpResponse<string>> {
                         const url = `${this.basePath}/api/questions/export`;
-                        return this.http.get(url, { responseType: 'text', observe: 'response' });
+                        return this.http.get(url, { ...options, responseType: 'text', observe: 'response' });
                 """);
         // A 201 with a Location header and no body.
         assertContains(api, """
-                    createQuestion(question: Question): Observable<HttpResponse<void>> {
+                    createQuestion(question: Question, options?: RequestOptions): Observable<HttpResponse<void>> {
                         const url = `${this.basePath}/api/questions`;
-                        return this.http.post<void>(url, question, { observe: 'response' });
+                        return this.http.post<void>(url, question, { ...options, observe: 'response' });
                 """);
-        assertContains(api, "return this.http.delete<number>(url, { body: requestBody, observe: 'response' });");
+        assertContains(api, "return this.http.delete<number>(url, { ...options, body: requestBody, observe: 'response' });");
         // A file download observes the response anyway; observe appears once.
-        assertContains(api, "return this.http.get(url, { responseType: 'blob', observe: 'response' });");
+        assertContains(api, "return this.http.get(url, { ...options, responseType: 'blob', observe: 'response' });");
         // A header on an error response only: HttpErrorResponse already exposes it, so the body stays the result.
         assertContains(api, """
-                    getQuestion(questionId: number): Observable<Question> {
+                    getQuestion(questionId: number, options?: RequestOptions): Observable<Question> {
                         const url = `${this.basePath}/api/questions/${questionId}`;
-                        return this.http.get<Question>(url);
+                        return this.http.get<Question>(url, options);
                 """);
     }
 
@@ -187,10 +187,10 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/question-api.ts"));
         assertContains(api, """
-                    getQuestions(page?: number): Observable<Array<Question>> {
+                    getQuestions(page?: number, options?: RequestOptions): Observable<Array<Question>> {
                 """);
-        assertContains(api, "return this.http.get<Array<Question>>(url);");
-        assertContains(api, "return this.http.post<void>(url, question);");
+        assertContains(api, "return this.http.get<Array<Question>>(url, options);");
+        assertContains(api, "return this.http.post<void>(url, question, options);");
     }
 
     @Test
@@ -207,11 +207,11 @@ class Angular22GeneratorTest {
                         if (xTraceId !== undefined && xTraceId !== null) {
                             headers['X-Trace-Id'] = String(xTraceId);
                         }
-                        return this.http.get<RepositoryFiles>(url, { headers });
+                        return this.http.get<RepositoryFiles>(url, { ...options, headers: { ...options?.headers, ...headers } });
                 """);
-        assertContains(api, "return this.http.post<void>(url, repositoryFeedback, { headers });");
-        assertContains(api, "return this.http.get(url, { headers, responseType: 'text' });");
-        assertContains(api, "return this.http.get<RepositoryFiles>(url);");
+        assertContains(api, "return this.http.post<void>(url, repositoryFeedback, { ...options, headers: { ...options?.headers, ...headers } });");
+        assertContains(api, "return this.http.get(url, { ...options, headers: { ...options?.headers, ...headers }, responseType: 'text' });");
+        assertContains(api, "return this.http.get<RepositoryFiles>(url, options);");
 
         String resources = Files.readString(tempDir.resolve("api/repository-resources.ts"));
         // Header values are function arguments like path parameters; an optional one stays optional only while
@@ -244,19 +244,19 @@ class Angular22GeneratorTest {
         String api = Files.readString(tempDir.resolve("api/link-api.ts"));
         // The TypeScript name changes, the wire name stays.
         assertContains(api, """
-                    getLinkPreview(urlParam: string): Observable<LinkPreview> {
+                    getLinkPreview(urlParam: string, options?: RequestOptions): Observable<LinkPreview> {
                         const queryParams = new URLSearchParams();
                         appendQueryParam(queryParams, 'url', urlParam);
                         const queryString = queryParams.toString();
                         const url = `${this.basePath}/api/link-preview${queryString ? `?${queryString}` : ''}`;
                 """);
-        assertContains(api, "search(queryParam: string, paramsParam: number, headersParam?: string, queryStringParam?: string, queryParamsParam?: string, searchParamsParam?: string, appendQueryParamParam?: string): Observable<Array<LinkPreview>>");
+        assertContains(api, "search(queryParam: string, paramsParam: number, headersParam?: string, queryStringParam?: string, queryParamsParam?: string, searchParamsParam?: string, appendQueryParamParam?: string, options?: RequestOptions): Observable<Array<LinkPreview>>");
         assertContains(api, "const queryParamPath = encodeURIComponent(String(queryParam));");
         assertContains(api, "appendQueryParam(queryParams, 'queryString', queryStringParam);");
         assertContains(api, "appendQueryParam(queryParams, 'queryParams', queryParamsParam);");
         assertContains(api, "const url = `${this.basePath}/api/search/${queryParamPath}/${paramsParam}${queryString ? `?${queryString}` : ''}`;");
         assertContains(api, "headers['headers'] = String(headersParam);");
-        assertContains(api, "upload(formDataParam?: string): Observable<void>");
+        assertContains(api, "upload(formDataParam?: string, options?: RequestOptions): Observable<void>");
         assertContains(api, "formData.append('formData', String(formDataParam));");
 
         String resources = Files.readString(tempDir.resolve("api/link-resources.ts"));
@@ -272,7 +272,7 @@ class Angular22GeneratorTest {
         generateFixture("fixtures/reserved-parameter-openapi.yaml", Map.of());
 
         String api = Files.readString(tempDir.resolve("api/package-api.ts"));
-        assertContains(api, "getPackage(_default: number, _package: string, _function?: string, _new?: boolean): Observable<string>");
+        assertContains(api, "getPackage(_default: number, _package: string, _function?: string, _new?: boolean, options?: RequestOptions): Observable<string>");
         assertContains(api, "const _packagePath = encodeURIComponent(String(_package));");
         assertContains(api, "const url = `${this.basePath}/api/packages/${_default}/${_packagePath}${queryString ? `?${queryString}` : ''}`;");
 
@@ -320,7 +320,7 @@ class Angular22GeneratorTest {
                 }
                 """);
         // Parameters are identifiers, so reserved words stay escaped there.
-        assertContains(Files.readString(tempDir.resolve("api/result-api.ts")), "getResults(_final?: boolean): Observable<Array<ResultSummary>>");
+        assertContains(Files.readString(tempDir.resolve("api/result-api.ts")), "getResults(_final?: boolean, options?: RequestOptions): Observable<Array<ResultSummary>>");
     }
 
     @Test

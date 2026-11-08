@@ -227,8 +227,9 @@ final class TypeScriptSnippets {
      *   <li>{@code x-http-type-arg} &mdash; the {@code <T>} type argument, empty when a {@code responseType}
      *       option selects a non-JSON overload that already fixes the result type</li>
      *   <li>{@code x-http-args} &mdash; the argument list: {@code url}, the payload for methods that take one,
-     *       and an options object with, in this order and only when present, {@code body} (DELETE only),
-     *       {@code headers}, {@code responseType} and {@code observe}</li>
+     *       and the options: the caller's {@code options} as they are, or spread into an object that adds, in this
+     *       order and only when present, {@code body} (DELETE only), {@code headers}, {@code responseType} and
+     *       {@code observe}</li>
      * </ul>
      *
      * @param op              the operation whose HttpClient call should be built
@@ -262,9 +263,10 @@ final class TypeScriptSnippets {
         if (urlEncoded) {
             // Angular labels a string body text/plain, so a form body needs its media type named.
             String contentType = "'Content-Type': " + stringLiteral(URL_ENCODED_FORM);
-            options.add(op.getHasHeaderParams() ? "headers: { ...headers, " + contentType + " }" : "headers: { " + contentType + " }");
+            options.add(op.getHasHeaderParams() ? "headers: { ...options?.headers, ...headers, " + contentType + " }"
+                    : "headers: { ...options?.headers, " + contentType + " }");
         } else if (op.getHasHeaderParams()) {
-            options.add("headers");
+            options.add("headers: { ...options?.headers, ...headers }");
         }
         options.addAll(switch (response) {
             case JSON -> List.of();
@@ -274,8 +276,11 @@ final class TypeScriptSnippets {
         if (observeResponse) {
             options.add("observe: 'response'");
         }
-        if (!options.isEmpty()) {
-            args.add("{ " + String.join(", ", options) + " }");
+        if (options.isEmpty()) {
+            args.add("options");
+        } else {
+            // The caller's options come first, so the fields the operation fixes override them.
+            args.add("{ ...options, " + String.join(", ", options) + " }");
         }
 
         ResponseTypes types = ResponseTypes.of(op, response, "void");
