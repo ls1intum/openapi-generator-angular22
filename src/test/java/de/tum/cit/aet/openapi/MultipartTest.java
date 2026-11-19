@@ -24,6 +24,7 @@ class MultipartTest {
         new DefaultGenerator().opts(configurator.toClientOptInput()).generate();
 
         NodeProcess.assertSucceeds(Path.of("src/test/typescript"), "A multipart part has the wrong body or type",
-                "multipart.test.mjs", tempDir.resolve("api/upload-api.ts").toString());
+                "multipart.test.mjs", tempDir.resolve("api/upload-api.ts").toString(),
+                tempDir.resolve("api/multipart.ts").toString());
     }
 }

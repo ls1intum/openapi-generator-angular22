@@ -355,8 +355,9 @@ final class TypeScriptSnippets {
     }
 
     /**
-     * Computes the {@code FormData.append} statement for each multipart field and stores it in the
-     * {@code x-form-append} vendor extension.
+     * Computes the {@code buildFormData} entry of each multipart field, such as {@code ['file', file, 'file']}, and
+     * stores it in the {@code x-form-part} vendor extension. One entry per line keeps two operations that send the
+     * same fields from repeating a block of code.
      *
      * <p>{@code FormData} only accepts strings and Blobs. A field, or each item of an array or set except null and
      * undefined ones, becomes one part: a binary as it is, a string, number, boolean or enum value as text (OpenAPI's
@@ -389,55 +390,43 @@ final class TypeScriptSnippets {
             return;
         }
         for (CodegenParameter param : op.formParams) {
-            String name = param.paramName;
-            String key = stringLiteral(param.baseName);
             String jsonType = jsonMediaType(param.contentType);
-            String statement;
+            String encoding;
+            boolean each = false;
             if (param.isArray) {
                 CodegenProperty items = param.items;
-                String part = items == null ? null
-                        : partValue(items.dataType, items.isEnum || items.isEnumRef, items.isAnyType, items.isDate, jsonType, "item");
-                statement = part == null ? appendJsonPart(key, "Array.from(" + name + ")", jsonType)
-                        : name + ".forEach(item => { if (item !== undefined && item !== null) { formData.append(" + key + ", " + part + "); } });";
+                encoding = items == null ? null : partEncoding(items.dataType, items.isEnum || items.isEnumRef, items.isAnyType, items.isDate, jsonType);
+                each = encoding != null;
             } else {
-                String part = partValue(param.dataType, param.isEnum || param.isEnumRef, param.isAnyType, param.isDate, jsonType, name);
-                statement = part == null ? appendJsonPart(key, name, jsonType) : "formData.append(" + key + ", " + part + ");";
+                encoding = partEncoding(param.dataType, param.isEnum || param.isEnumRef, param.isAnyType, param.isDate, jsonType);
             }
-            param.vendorExtensions.put("x-form-append", statement);
+            if (encoding == null) {
+                encoding = jsonType != null ? jsonType : "application/json";
+            }
+            param.vendorExtensions.put("x-form-part", "[" + stringLiteral(param.baseName) + ", " + param.paramName + ", " + stringLiteral(encoding)
+                    + (each ? ", 'each'" : "") + "]");
         }
     }
 
     /**
-     * Returns the expression that turns one value into a part, or null when the value belongs in a JSON part. An
-     * untyped value is only known at runtime, so its expression keeps a Blob, sends a date as ISO 8601 and another
-     * primitive as text, and wraps anything else in a JSON part.
+     * Returns the {@code MultipartEncoding} of one value, or null when the value belongs in a JSON part. An untyped
+     * value is only known at runtime, so the helper keeps a Blob, sends a date as ISO 8601 and another primitive as
+     * text, and wraps anything else in a JSON part.
      */
-    private static String partValue(String dataType, boolean isEnum, boolean isAnyType, boolean isDate, String jsonType, String value) {
+    private static String partEncoding(String dataType, boolean isEnum, boolean isAnyType, boolean isDate, String jsonType) {
         if (isBinaryType(dataType)) {
-            return value;
+            return "file";
         }
         if (jsonType != null) {
             return null;
         }
         if ("Date".equals(dataType)) {
-            return value + ".toISOString()" + (isDate ? ".slice(0, 10)" : "");
+            return isDate ? "date" : "date-time";
         }
         if (isEnum || TS_SCALAR_TYPES.contains(dataType)) {
-            return "String(" + value + ")";
+            return "text";
         }
-        if (isAnyType) {
-            return value + " instanceof Blob ? " + value + " : " + value + " instanceof Date ? " + value + ".toISOString() : typeof " + value
-                    + " === 'object' ? " + jsonBlob(value, null) + " : String(" + value + ")";
-        }
-        return null;
-    }
-
-    private static String appendJsonPart(String key, String value, String jsonType) {
-        return "formData.append(" + key + ", " + jsonBlob(value, jsonType) + ");";
-    }
-
-    private static String jsonBlob(String value, String jsonType) {
-        return "new Blob([JSON.stringify(" + value + ")], { type: " + stringLiteral(jsonType != null ? jsonType : "application/json") + " })";
+        return isAnyType ? "any" : null;
     }
 
     /**

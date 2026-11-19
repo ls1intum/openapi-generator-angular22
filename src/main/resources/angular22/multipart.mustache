@@ -1,0 +1,58 @@
+{{>licenseInfo}}
+/**
+ * How a multipart field goes out: a file as it is, text, an ISO 8601 date or date-time, an untyped value by what it
+ * holds at runtime, or a JSON part of the given media type.
+ */
+export type MultipartEncoding = 'file' | 'text' | 'date' | 'date-time' | 'any' | `${string}/${string}`;
+
+/** One multipart field. With 'each', every item of the array or set becomes its own part. */
+export type MultipartField = readonly [name: string, value: unknown, encoding: MultipartEncoding, each?: 'each'];
+
+/**
+ * Builds the multipart body of a request. Null and undefined fields are left out, and so are null and undefined items
+ * of a field sent 'each'. A JSON part holds the whole value, a set as an array, nulls included.
+ */
+export function buildFormData(fields: readonly MultipartField[]): FormData {
+    const formData = new FormData();
+    for (const [name, value, encoding, each] of fields) {
+        if (!isPresent(value)) {
+            continue;
+        }
+        const values = each ? Array.from(value as Iterable<unknown>).filter(isPresent) : [value];
+        for (const item of values) {
+            formData.append(name, toPart(item, encoding));
+        }
+    }
+    return formData;
+}
+
+function toPart(value: unknown, encoding: MultipartEncoding): string | Blob {
+    switch (encoding) {
+        case 'file':
+            return value as Blob;
+        case 'text':
+            return String(value);
+        case 'date':
+            return (value as Date).toISOString().slice(0, 10);
+        case 'date-time':
+            return (value as Date).toISOString();
+        case 'any':
+            if (value instanceof Blob) {
+                return value;
+            }
+            if (value instanceof Date) {
+                return value.toISOString();
+            }
+            return typeof value === 'object' ? jsonPart(value, 'application/json') : String(value);
+        default:
+            return jsonPart(value, encoding);
+    }
+}
+
+function jsonPart(value: unknown, type: string): Blob {
+    return new Blob([JSON.stringify(value instanceof Set ? Array.from(value) : value)], { type });
+}
+
+function isPresent(value: unknown): boolean {
+    return value !== undefined && value !== null;
+}

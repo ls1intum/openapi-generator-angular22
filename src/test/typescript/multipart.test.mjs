@@ -2,15 +2,20 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
-const source = readFileSync(process.argv[2], 'utf8');
+const [apiFile, helperFile] = process.argv.slice(2);
+const transpile = (file) => ts.transpile(readFileSync(file, 'utf8'), { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, experimentalDecorators: true });
+
+const helper = {};
+new Function('exports', transpile(helperFile))(helper);
+
 const http = { post: (url, body) => body };
-const angular = {
+const modules = {
     '@angular/core': { inject: () => http, Injectable: () => (target) => target },
     '@angular/common/http': { HttpClient: class {} },
+    './multipart': helper,
 };
 const exports = {};
-const compiled = ts.transpile(source, { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, experimentalDecorators: true });
-new Function('exports', 'require', compiled)(exports, (name) => angular[name]);
+new Function('exports', 'require', transpile(apiFile))(exports, (name) => modules[name]);
 
 const form = new exports.UploadApi().createUpload(
     { title: 'Algorithms' },
