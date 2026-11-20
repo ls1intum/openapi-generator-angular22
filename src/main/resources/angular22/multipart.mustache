@@ -1,58 +1,99 @@
 {{>licenseInfo}}
-/**
- * How a multipart field goes out: a file as it is, text, an ISO 8601 date or date-time, an untyped value by what it
- * holds at runtime, or a JSON part of the given media type.
+/*
+ * Appends the fields of a multipart body. Each function takes one field, so its type states what the field may hold,
+ * and leaves the field out when it is null or undefined. A function for a collection appends each item that is not
+ * null or undefined as its own part, except appendJsonArray, which sends the whole collection as one JSON part.
  */
-export type MultipartEncoding = 'file' | 'text' | 'date' | 'date-time' | 'any' | `${string}/${string}`;
 
-/** One multipart field. With 'each', every item of the array or set becomes its own part. */
-export type MultipartField = readonly [name: string, value: unknown, encoding: MultipartEncoding, each?: 'each'];
+type Absent = null | undefined;
 
-/**
- * Builds the multipart body of a request. Null and undefined fields are left out, and so are null and undefined items
- * of a field sent 'each'. A JSON part holds the whole value, a set as an array, nulls included.
- */
-export function buildFormData(fields: readonly MultipartField[]): FormData {
-    const formData = new FormData();
-    for (const [name, value, encoding, each] of fields) {
-        if (!isPresent(value)) {
-            continue;
-        }
-        const values = each ? Array.from(value as Iterable<unknown>).filter(isPresent) : [value];
-        for (const item of values) {
-            formData.append(name, toPart(item, encoding));
-        }
-    }
-    return formData;
+/** Appends a file as it is, so the part keeps the file's name. */
+export function appendFile(formData: FormData, name: string, file: Blob | Absent): void {
+    appendOne(formData, name, file, (value) => value);
 }
 
-function toPart(value: unknown, encoding: MultipartEncoding): string | Blob {
-    switch (encoding) {
-        case 'file':
-            return value as Blob;
-        case 'text':
-            return String(value);
-        case 'date':
-            return (value as Date).toISOString().slice(0, 10);
-        case 'date-time':
-            return (value as Date).toISOString();
-        case 'any':
-            if (value instanceof Blob) {
-                return value;
-            }
-            if (value instanceof Date) {
-                return value.toISOString();
-            }
-            return typeof value === 'object' ? jsonPart(value, 'application/json') : String(value);
-        default:
-            return jsonPart(value, encoding);
+export function appendFiles(formData: FormData, name: string, files: Iterable<Blob | Absent> | Absent): void {
+    appendEach(formData, name, files, (value) => value);
+}
+
+/** Appends a string, number, boolean or enum value as text, OpenAPI's default encoding for primitives. */
+export function appendText(formData: FormData, name: string, value: string | number | boolean | Absent): void {
+    appendOne(formData, name, value, String);
+}
+
+export function appendTexts(formData: FormData, name: string, values: Iterable<string | number | boolean | Absent> | Absent): void {
+    appendEach(formData, name, values, String);
+}
+
+/** Appends the full date of a format: date field, such as 2026-10-08. */
+export function appendDate(formData: FormData, name: string, date: Date | Absent): void {
+    appendOne(formData, name, date, fullDate);
+}
+
+export function appendDates(formData: FormData, name: string, dates: Iterable<Date | Absent> | Absent): void {
+    appendEach(formData, name, dates, fullDate);
+}
+
+/** Appends a date-time as ISO 8601. */
+export function appendDateTime(formData: FormData, name: string, date: Date | Absent): void {
+    appendOne(formData, name, date, isoDateTime);
+}
+
+export function appendDateTimes(formData: FormData, name: string, dates: Iterable<Date | Absent> | Absent): void {
+    appendEach(formData, name, dates, isoDateTime);
+}
+
+/** Appends an untyped value by what it holds: a Blob as it is, a date as ISO 8601, an object as JSON, else text. */
+export function appendValue(formData: FormData, name: string, value: unknown): void {
+    appendOne(formData, name, value, untypedPart);
+}
+
+export function appendValues(formData: FormData, name: string, values: Iterable<unknown> | Absent): void {
+    appendEach(formData, name, values, untypedPart);
+}
+
+/** Appends one JSON part, which is what Spring's @RequestPart reads for a DTO. */
+export function appendJson(formData: FormData, name: string, value: unknown, type = 'application/json'): void {
+    appendOne(formData, name, value, (present) => jsonPart(present, type));
+}
+
+/** Appends an array or set as one JSON array, nulls included. */
+export function appendJsonArray(formData: FormData, name: string, values: Iterable<unknown> | Absent, type = 'application/json'): void {
+    appendOne(formData, name, values, (present) => jsonPart(Array.from(present), type));
+}
+
+function appendOne<T>(formData: FormData, name: string, value: T | Absent, toPart: (value: T) => string | Blob): void {
+    if (value !== undefined && value !== null) {
+        formData.append(name, toPart(value));
     }
+}
+
+function appendEach<T>(formData: FormData, name: string, values: Iterable<T | Absent> | Absent, toPart: (value: T) => string | Blob): void {
+    if (values !== undefined && values !== null) {
+        for (const value of values) {
+            appendOne(formData, name, value, toPart);
+        }
+    }
+}
+
+function fullDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+function isoDateTime(date: Date): string {
+    return date.toISOString();
+}
+
+function untypedPart(value: unknown): string | Blob {
+    if (value instanceof Blob) {
+        return value;
+    }
+    if (value instanceof Date) {
+        return value.toISOString();
+    }
+    return typeof value === 'object' ? jsonPart(value, 'application/json') : String(value);
 }
 
 function jsonPart(value: unknown, type: string): Blob {
-    return new Blob([JSON.stringify(value instanceof Set ? Array.from(value) : value)], { type });
-}
-
-function isPresent(value: unknown): boolean {
-    return value !== undefined && value !== null;
+    return new Blob([JSON.stringify(value)], { type });
 }

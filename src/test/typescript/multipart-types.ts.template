@@ -1,0 +1,22 @@
+import { appendDate, appendDateTimes, appendFile, appendFiles, appendJsonArray, appendText, appendTexts } from './api/multipart';
+
+const formData = new FormData();
+
+appendFile(formData, 'file', new File(['a'], 'a.txt'));
+appendFiles(formData, 'files', [new File(['a'], 'a.txt'), null]);
+appendText(formData, 'count', 3);
+appendTexts(formData, 'tags', new Set(['x']));
+appendDate(formData, 'day', undefined);
+appendDateTimes(formData, 'stamps', [new Date(), null]);
+appendJsonArray(formData, 'sections', new Set([{ number: 1 }]));
+
+// @ts-expect-error A date field takes a Date, not a string.
+appendDate(formData, 'day', 'tomorrow');
+// @ts-expect-error A repeated field takes a collection.
+appendFiles(formData, 'files', 42);
+// @ts-expect-error A file field takes a Blob.
+appendFile(formData, 'file', 'a.txt');
+// @ts-expect-error A text field takes a primitive, not an object.
+appendText(formData, 'name', { title: 'x' });
+// @ts-expect-error A JSON array field takes a collection.
+appendJsonArray(formData, 'sections', { number: 1 });

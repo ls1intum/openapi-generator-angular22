@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
@@ -30,6 +31,10 @@ final class TypeScriptSnippets {
 
     /** TypeScript types that {@code String()} turns into a form field value without losing information. */
     private static final Set<String> TS_SCALAR_TYPES = Set.of("string", "number", "boolean");
+    private static final String MULTIPART_HELPERS_KEY = "x-multipart-helpers";
+    /** The functions of {@code api/multipart.ts} that a service method may call. */
+    static final Set<String> MULTIPART_HELPERS = Set.of("appendFile", "appendFiles", "appendText", "appendTexts", "appendDate", "appendDates",
+            "appendDateTime", "appendDateTimes", "appendValue", "appendValues", "appendJson", "appendJsonArray");
     private static final Set<String> QUERY_STYLES = Set.of("form", "spaceDelimited", "pipeDelimited", "deepObject");
     private static final Pattern JSON_MEDIA_TYPE = Pattern.compile("(?i)application/([^;]+\\+)?json(\\s*;.*)?");
     private static final Pattern JSON_MEDIA_RANGE = Pattern.compile("(?i)(\\*|application)/\\*(\\s*;.*)?");
@@ -355,9 +360,10 @@ final class TypeScriptSnippets {
     }
 
     /**
-     * Computes the {@code buildFormData} entry of each multipart field, such as {@code ['file', file, 'file']}, and
-     * stores it in the {@code x-form-part} vendor extension. One entry per line keeps two operations that send the
-     * same fields from repeating a block of code.
+     * Computes the call of {@code api/multipart.ts} that appends each multipart field, such as
+     * {@code appendFile(formData, 'file', file);}, and stores it in the {@code x-form-append} vendor extension. Each
+     * helper's parameter type states what the field may hold, so the TypeScript compiler checks the choice. The
+     * helpers skip a null or undefined field, so a field takes one line rather than a guarded block.
      *
      * <p>{@code FormData} only accepts strings and Blobs. A field, or each item of an array or set except null and
      * undefined ones, becomes one part: a binary as it is, a string, number, boolean or enum value as text (OpenAPI's
@@ -389,44 +395,58 @@ final class TypeScriptSnippets {
             }
             return;
         }
+        Set<String> helpers = new TreeSet<>();
         for (CodegenParameter param : op.formParams) {
             String jsonType = jsonMediaType(param.contentType);
-            String encoding;
-            boolean each = false;
+            String helper;
             if (param.isArray) {
                 CodegenProperty items = param.items;
-                encoding = items == null ? null : partEncoding(items.dataType, items.isEnum || items.isEnumRef, items.isAnyType, items.isDate, jsonType);
-                each = encoding != null;
+                String part = items == null ? null : partHelper(items.dataType, items.isEnum || items.isEnumRef, items.isAnyType, items.isDate, jsonType);
+                helper = part == null ? "appendJsonArray" : part + "s";
             } else {
-                encoding = partEncoding(param.dataType, param.isEnum || param.isEnumRef, param.isAnyType, param.isDate, jsonType);
+                String part = partHelper(param.dataType, param.isEnum || param.isEnumRef, param.isAnyType, param.isDate, jsonType);
+                helper = part == null ? "appendJson" : part;
             }
-            if (encoding == null) {
-                encoding = jsonType != null ? jsonType : "application/json";
-            }
-            param.vendorExtensions.put("x-form-part", "[" + stringLiteral(param.baseName) + ", " + param.paramName + ", " + stringLiteral(encoding)
-                    + (each ? ", 'each'" : "") + "]");
+            helpers.add(helper);
+            String mediaType = helper.startsWith("appendJson") && jsonType != null && !"application/json".equals(jsonType)
+                    ? ", " + stringLiteral(jsonType) : "";
+            param.vendorExtensions.put("x-form-append",
+                    helper + "(formData, " + stringLiteral(param.baseName) + ", " + param.paramName + mediaType + ");");
         }
+        op.vendorExtensions.put(MULTIPART_HELPERS_KEY, helpers);
     }
 
     /**
-     * Returns the {@code MultipartEncoding} of one value, or null when the value belongs in a JSON part. An untyped
-     * value is only known at runtime, so the helper keeps a Blob, sends a date as ISO 8601 and another primitive as
-     * text, and wraps anything else in a JSON part.
+     * Returns the {@code api/multipart.ts} functions that {@link #processFormParameters} chose for an operation.
+     *
+     * @param op the operation
+     * @return the helper names, empty for an operation without a multipart body
      */
-    private static String partEncoding(String dataType, boolean isEnum, boolean isAnyType, boolean isDate, String jsonType) {
+    @SuppressWarnings("unchecked")
+    static Set<String> multipartHelpers(CodegenOperation op) {
+        return (Set<String>) op.vendorExtensions.getOrDefault(MULTIPART_HELPERS_KEY, Set.of());
+    }
+
+    /**
+     * Returns the helper that appends one value, or null when the value belongs in a JSON part. An untyped value is
+     * only known at runtime, so {@code appendValue} keeps a Blob, sends a date as ISO 8601 and another primitive as
+     * text, and wraps anything else in a JSON part. The helper for each item of a collection has the same name plus
+     * {@code s}.
+     */
+    private static String partHelper(String dataType, boolean isEnum, boolean isAnyType, boolean isDate, String jsonType) {
         if (isBinaryType(dataType)) {
-            return "file";
+            return "appendFile";
         }
         if (jsonType != null) {
             return null;
         }
         if ("Date".equals(dataType)) {
-            return isDate ? "date" : "date-time";
+            return isDate ? "appendDate" : "appendDateTime";
         }
         if (isEnum || TS_SCALAR_TYPES.contains(dataType)) {
-            return "text";
+            return "appendText";
         }
-        return isAnyType ? "any" : null;
+        return isAnyType ? "appendValue" : null;
     }
 
     /**

@@ -81,30 +81,24 @@ class Angular22GeneratorTest {
         generateFixture("fixtures/multipart-openapi.yaml", Map.of());
 
         String api = Files.readString(tempDir.resolve("api/upload-api.ts"));
-        // Each field is one entry of the shared helper, so operations with the same fields share no block of code.
-        assertContains(api, "import { buildFormData } from './multipart';");
-        assertContains(api, """
-                        const formData = buildFormData([
-                            ['course', course, 'application/json'],
-                            ['file', file, 'file'],
-                            ['files', files, 'file', 'each'],
-                """);
-        // Objects, arrays of objects and maps go out as one JSON part each, which Spring's @RequestPart reads.
-        assertContains(api, "['pages', pages, 'application/json'],");
-        assertContains(api, "['labels', labels, 'application/json'],");
+        // Each field is one call of a typed helper of api/multipart.ts, chosen by what the field holds.
+        assertContains(api, "import { appendFile, appendFiles, appendJson, appendJsonArray, appendText, appendTexts, appendValue, appendValues } from './multipart';");
+        // Objects and maps go out as one JSON part, a collection of objects as one JSON array, which Spring's @RequestPart reads.
+        assertContains(api, "appendJson(formData, 'course', course);");
+        assertContains(api, "appendJsonArray(formData, 'pages', pages);");
+        assertContains(api, "appendJson(formData, 'labels', labels);");
+        assertContains(api, "appendJsonArray(formData, 'vendorLabels', vendorLabels, 'application/vnd.example+json');");
         // File parts are typed File: FormData sends a File with its name, and a plain Blob as "blob".
         assertContains(api, "createUpload(course: CourseCreate, file?: File, files?: Array<File>, name?: string,");
         // Only Blob becomes File, so a nullable item keeps its null.
         assertContains(api, "nullableFiles?: Array<File | null>");
+        assertContains(api, "appendFile(formData, 'file', file);");
+        assertContains(api, "appendFiles(formData, 'files', files);");
         // Scalars and enums become strings, the only non-Blob value FormData accepts.
-        assertContains(api, "['name', name, 'text'],");
-        assertContains(api, "['count', count, 'text'],");
-        assertContains(api, "['ratio', ratio, 'text'],");
-        assertContains(api, "['active', active, 'text'],");
-        assertContains(api, "['mode', mode, 'text'],");
-        assertContains(api, "['day', day, 'text'],");
-        assertContains(api, "['vendorLabels', vendorLabels, 'application/vnd.example+json'],");
-        assertFalse(api.contains("formData.append"), "Each part goes through the shared helper");
+        assertContains(api, "appendText(formData, 'count', count);");
+        assertContains(api, "appendText(formData, 'mode', mode);");
+        assertContains(api, "appendTexts(formData, 'tags', tags);");
+        assertContains(api, "appendValue(formData, 'anything', anything);");
         assertContains(api, "return this.http.post<CourseCreate>(url, formData, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
     }
 
@@ -271,7 +265,7 @@ class Angular22GeneratorTest {
         assertContains(api, "const url = `${this.basePath}/api/search/${queryParamPath}/${paramsParam}${queryString ? `?${queryString}` : ''}`;");
         assertContains(api, "headers['headers'] = String(headersParam);");
         assertContains(api, "upload(formDataParam?: string, options?: import('./request-options').RequestOptions): Observable<void>");
-        assertContains(api, "['formData', formDataParam, 'text'],");
+        assertContains(api, "appendText(formData, 'formData', formDataParam);");
 
         String resources = Files.readString(tempDir.resolve("api/link-resources.ts"));
         assertContains(resources, "appendQueryParam(searchParams, 'url', queryParams.url);");

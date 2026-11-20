@@ -180,9 +180,10 @@ that OpenAPI does not allow in a query, such as `simple`, fails generation.
 
 ### Multipart Bodies
 
-`api/multipart.ts` holds `buildFormData`, which service files with multipart bodies import. Each method passes one
-entry per field, such as `['file', file, 'file']`, so two operations that send the same fields share no block of
-code.
+`api/multipart.ts` holds one function per kind of field, such as `appendFile` and `appendJsonArray`, which service
+files with multipart bodies import. Each method appends a field with one call, such as
+`appendFile(formData, 'file', file);`. The function's parameter type states what the field may hold, and the function
+leaves out a null or undefined field, so the method holds no guarded `formData.append` blocks.
 
 Each multipart field follows its `encoding`. A field, or each item of an array or set except null ones, becomes one
 part. A binary field (`format: binary`) is typed `File`, or `Array<File>`, and goes out as it is, so the part carries
