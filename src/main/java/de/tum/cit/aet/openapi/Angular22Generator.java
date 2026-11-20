@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Custom OpenAPI Generator for Angular 22+ with modern best practices.
@@ -42,7 +43,8 @@ import java.util.stream.Collectors;
  * </ol>
  *
  * <p>One {@code api/query-params.ts} per client holds {@code appendQueryParam}, which service and resource files with
- * query parameters and service files with URL-encoded forms import.</p>
+ * query parameters and service files with URL-encoded forms import, and one {@code api/multipart.ts} holds the
+ * {@code append*} functions, which service files with multipart bodies import.</p>
  *
  * <p><b>Generation Pipeline</b></p>
  * The generator hooks into five lifecycle stages of the OpenAPI Generator framework:
@@ -70,8 +72,9 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
 
 
     /** Identifiers that a generated service method or resource function declares or calls next to its parameters. */
-    private static final Set<String> TEMPLATE_LOCALS = Set.of("url", "queryParams", "queryString", "formData", "formBody", "headers",
-            "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject", "options");
+    private static final Set<String> TEMPLATE_LOCALS = Stream.concat(Stream.of("url", "queryParams", "queryString", "formData", "formBody",
+            "headers", "searchParams", "query", "params", "appendQueryParam", "httpResource", "inject", "options"),
+            TypeScriptSnippets.MULTIPART_HELPERS.stream()).collect(Collectors.toUnmodifiableSet());
 
     /** Generator name used by the OpenAPI Generator SPI and CLI. */
     public static final String GENERATOR_NAME = "angular22";
@@ -111,6 +114,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
      *   <li>{@code api-resource.mustache} &rarr; httpResource files ({@code *-resources.ts}),
      *       conditionally added in {@link #processOpts()}</li>
      *   <li>{@code query-params.mustache} &rarr; {@code api/query-params.ts}, added in {@link #processOpts()}</li>
+     *   <li>{@code multipart.mustache} &rarr; {@code api/multipart.ts}, added in {@link #processOpts()}</li>
      * </ul>
      */
     public Angular22Generator() {
@@ -195,6 +199,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         supportingFiles.clear();
         supportingFiles.add(new SupportingFile("query-params.mustache", "api", "query-params.ts"));
         supportingFiles.add(new SupportingFile("request-options.mustache", "api", "request-options.ts"));
+        supportingFiles.add(new SupportingFile("multipart.mustache", "api", "multipart.ts"));
 
         if (additionalProperties.containsKey(USE_HTTP_RESOURCE)) {
             useHttpResource = Boolean.parseBoolean(additionalProperties.get(USE_HTTP_RESOURCE).toString());
@@ -630,6 +635,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         OperationMap operations = result.getOperations();
         List<CodegenOperation> ops = operations.getOperation();
         List<CodegenOperation> getOperations = new ArrayList<>();
+        // The multipart helpers this file calls, sorted, so the import names each once.
+        Set<String> multipartHelpers = new TreeSet<>();
 
         for (CodegenOperation op : ops) {
             TypeScriptSnippets.ResponseKind response = TypeScriptSnippets.ResponseKind.of(op);
@@ -637,7 +644,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             TypeScriptSnippets.processPathParameters(op, locals);
             TypeScriptSnippets.processHeaderParameters(op, locals);
             processQueryParameters(op);
-            TypeScriptSnippets.processFormParameters(op);
+            multipartHelpers.addAll(TypeScriptSnippets.processFormParameters(op));
             TypeScriptSnippets.buildHttpCall(op, response, TypeScriptSnippets.observesResponse(op, observeResponseHeaders));
 
             String specPath = op.vendorExtensions.get("x-path-from-spec").toString();
@@ -655,6 +662,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         // the separate resources file holds only the GETs.
         // URL-encoded form fields follow the query rules, so they go through the same helper.
         operations.put("usesQueryHelper", ops.stream().anyMatch(op -> !op.queryParams.isEmpty() || TypeScriptSnippets.isUrlEncodedForm(op)));
+        operations.put("usesMultipartHelpers", !multipartHelpers.isEmpty());
+        operations.put("multipartHelpers", String.join(", ", multipartHelpers));
         operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));
         operations.put("usesHttpResponse", ops.stream().anyMatch(op -> TypeScriptSnippets.observesResponse(op, observeResponseHeaders)));
         operations.put("hasSignalArguments", getOperations.stream()

@@ -5,7 +5,7 @@ any other project — then resolve it from a plain `mavenCentral()` repository, 
 
 ```kotlin
 repositories { mavenCentral() }
-dependencies { /* openapiGenerator | classpath */ "de.tum.cit.aet:openapi-generator-angular22:4.0.0" }
+dependencies { /* openapiGenerator | classpath */ "de.tum.cit.aet:openapi-generator-angular22:4.1.0" }
 ```
 
 Publishing is automated by [`.github/workflows/build.yml`](.github/workflows/build.yml): pushing a tag

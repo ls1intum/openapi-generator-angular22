@@ -2,17 +2,23 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
 
-const source = readFileSync(process.argv[2], 'utf8');
+const [apiFile, helperFile] = process.argv.slice(2);
+const transpile = (file) => ts.transpile(readFileSync(file, 'utf8'), { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, experimentalDecorators: true });
+
+const helper = {};
+new Function('exports', transpile(helperFile))(helper);
+
 const http = { post: (url, body) => body };
-const angular = {
+const modules = {
     '@angular/core': { inject: () => http, Injectable: () => (target) => target },
     '@angular/common/http': { HttpClient: class {} },
+    './multipart': helper,
 };
 const exports = {};
-const compiled = ts.transpile(source, { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, experimentalDecorators: true });
-new Function('exports', 'require', compiled)(exports, (name) => angular[name]);
+new Function('exports', 'require', transpile(apiFile))(exports, (name) => modules[name]);
 
-const form = new exports.UploadApi().createUpload(
+const api = new exports.UploadApi();
+const form = api.createUpload(
     { title: 'Algorithms' },
     new File(['slides'], 'slides.pdf'),
     [new File(['a'], 'a.png'), null, new File(['b'], 'b.png')],
@@ -89,3 +95,18 @@ assert.deepEqual(
     [{ type: 'application/vnd.example+json', body: '["a","b"]' }],
     'an encoding with a +json media type sends one part of that type',
 );
+
+// A JSON part of an untyped value keeps what JSON.stringify makes of it, as in 4.0.0: a set has no own properties.
+const untyped = api.createUpload({ title: 'Sets' }, ...Array(22).fill(undefined), new Set([1]));
+assert.deepEqual(
+    await Promise.all(untyped.getAll('anything').map(async (part) => ({ type: part.type, body: await part.text() }))),
+    json('{}'),
+    'a set in an untyped field is sent as JSON.stringify sends it',
+);
+assert.deepEqual(untyped.getAll('sections'), [], 'a field left out sends no part');
+
+const empty = api.createUpload({ title: 'Empty' }, undefined, [], undefined, undefined, undefined, undefined, undefined, [], undefined, [], new Set());
+assert.deepEqual(empty.getAll('files'), [], 'an empty array of files sends no part');
+assert.deepEqual(empty.getAll('tags'), [], 'an empty array of strings sends no part');
+assert.deepEqual(await empty.get('pages').text(), '[]', 'an empty array of objects is sent as an empty JSON array');
+assert.deepEqual(await empty.get('sections').text(), '[]', 'an empty set of objects is sent as an empty JSON array');

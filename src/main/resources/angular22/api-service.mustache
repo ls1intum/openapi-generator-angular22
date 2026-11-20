@@ -18,6 +18,9 @@ import { {{classname}} } from '../model/{{filename}}';
 {{#operations.usesQueryHelper}}
 import { appendQueryParam } from './query-params';
 {{/operations.usesQueryHelper}}
+{{#operations.usesMultipartHelpers}}
+import { {{operations.multipartHelpers}} } from './multipart';
+{{/operations.usesMultipartHelpers}}
 
 @Injectable({ providedIn: 'root' })
 export class {{classname}} {
@@ -83,9 +86,7 @@ export class {{classname}} {
 {{#hasFormParams}}
         const formData = new FormData();
 {{#formParams}}
-        if ({{paramName}} !== undefined && {{paramName}} !== null) {
-            {{{vendorExtensions.x-form-append}}}
-        }
+        {{{vendorExtensions.x-form-append}}}
 {{/formParams}}
 {{/hasFormParams}}
 {{/vendorExtensions.x-url-encoded}}

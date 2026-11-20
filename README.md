@@ -180,6 +180,11 @@ that OpenAPI does not allow in a query, such as `simple`, fails generation.
 
 ### Multipart Bodies
 
+`api/multipart.ts` holds one function per kind of field, such as `appendFile` and `appendJsonArray`, which service
+files with multipart bodies import. Each method appends a field with one call, such as
+`appendFile(formData, 'file', file);`. The function's parameter type states what the field may hold, and the function
+leaves out a null or undefined field, so the method holds no guarded `formData.append` blocks.
+
 Each multipart field follows its `encoding`. A field, or each item of an array or set except null ones, becomes one
 part. A binary field (`format: binary`) is typed `File`, or `Array<File>`, and goes out as it is, so the part carries
 the file's name; `FormData` would send a plain `Blob` with the name `blob`. To send a `Blob`, for example from
@@ -219,7 +224,7 @@ plugins {
 
 dependencies {
     // Add as a dependency to the openapi generator
-    openapiGenerator("de.tum.cit.aet:openapi-generator-angular22:4.0.0")
+    openapiGenerator("de.tum.cit.aet:openapi-generator-angular22:4.1.0")
 }
 
 openApiGenerate {
@@ -245,7 +250,7 @@ plugins {
 
 dependencies {
     // Add as a dependency to the openapi generator
-    openapiGenerator 'de.tum.cit.aet:openapi-generator-angular22:4.0.0'
+    openapiGenerator 'de.tum.cit.aet:openapi-generator-angular22:4.1.0'
 }
 
 openApiGenerate {
@@ -290,7 +295,7 @@ openApiGenerate {
         <dependency>
             <groupId>de.tum.cit.aet</groupId>
             <artifactId>openapi-generator-angular22</artifactId>
-            <version>4.0.0</version>
+            <version>4.1.0</version>
         </dependency>
     </dependencies>
 </plugin>
@@ -300,11 +305,11 @@ openApiGenerate {
 
 ```bash
 # Download the generator and OpenAPI Generator CLI JARs
-wget https://github.com/ls1intum/openapi-generator-angular22/releases/download/v4.0.0/openapi-generator-angular22-4.0.0.jar
+wget https://github.com/ls1intum/openapi-generator-angular22/releases/download/v4.1.0/openapi-generator-angular22-4.1.0.jar
 wget https://repo.maven.apache.org/maven2/org/openapitools/openapi-generator-cli/7.21.0/openapi-generator-cli-7.21.0.jar
 
 # Generate code
-java -cp openapi-generator-angular22-4.0.0.jar:openapi-generator-cli-7.21.0.jar \
+java -cp openapi-generator-angular22-4.1.0.jar:openapi-generator-cli-7.21.0.jar \
     org.openapitools.codegen.OpenAPIGenerator generate \
     -g angular22 \
     -i openapi.yaml \
