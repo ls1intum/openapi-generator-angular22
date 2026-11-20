@@ -635,6 +635,8 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         OperationMap operations = result.getOperations();
         List<CodegenOperation> ops = operations.getOperation();
         List<CodegenOperation> getOperations = new ArrayList<>();
+        // The multipart helpers this file calls, sorted, so the import names each once.
+        Set<String> multipartHelpers = new TreeSet<>();
 
         for (CodegenOperation op : ops) {
             TypeScriptSnippets.ResponseKind response = TypeScriptSnippets.ResponseKind.of(op);
@@ -642,7 +644,7 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
             TypeScriptSnippets.processPathParameters(op, locals);
             TypeScriptSnippets.processHeaderParameters(op, locals);
             processQueryParameters(op);
-            TypeScriptSnippets.processFormParameters(op);
+            multipartHelpers.addAll(TypeScriptSnippets.processFormParameters(op));
             TypeScriptSnippets.buildHttpCall(op, response, TypeScriptSnippets.observesResponse(op, observeResponseHeaders));
 
             String specPath = op.vendorExtensions.get("x-path-from-spec").toString();
@@ -660,9 +662,6 @@ public class Angular22Generator extends TypeScriptAngularClientCodegen {
         // the separate resources file holds only the GETs.
         // URL-encoded form fields follow the query rules, so they go through the same helper.
         operations.put("usesQueryHelper", ops.stream().anyMatch(op -> !op.queryParams.isEmpty() || TypeScriptSnippets.isUrlEncodedForm(op)));
-        // The multipart helpers this file calls, sorted, so the import names each once.
-        Set<String> multipartHelpers = ops.stream().flatMap(op -> TypeScriptSnippets.multipartHelpers(op).stream())
-                .collect(Collectors.toCollection(TreeSet::new));
         operations.put("usesMultipartHelpers", !multipartHelpers.isEmpty());
         operations.put("multipartHelpers", String.join(", ", multipartHelpers));
         operations.put("hasResourceQueryParams", getOperations.stream().anyMatch(op -> !op.queryParams.isEmpty()));

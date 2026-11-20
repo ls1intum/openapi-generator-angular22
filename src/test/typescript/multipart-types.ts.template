@@ -20,3 +20,7 @@ appendFile(formData, 'file', 'a.txt');
 appendText(formData, 'name', { title: 'x' });
 // @ts-expect-error A JSON array field takes a collection.
 appendJsonArray(formData, 'sections', { number: 1 });
+// @ts-expect-error A repeated text field takes a collection, not one string, which would send one part per character.
+appendTexts(formData, 'tags', 'cat');
+// @ts-expect-error A JSON array field takes a collection, not one string.
+appendJsonArray(formData, 'sections', 'cat');

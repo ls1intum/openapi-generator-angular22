@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
@@ -31,7 +30,6 @@ final class TypeScriptSnippets {
 
     /** TypeScript types that {@code String()} turns into a form field value without losing information. */
     private static final Set<String> TS_SCALAR_TYPES = Set.of("string", "number", "boolean");
-    private static final String MULTIPART_HELPERS_KEY = "x-multipart-helpers";
     /** The functions of {@code api/multipart.ts} that a service method may call. */
     static final Set<String> MULTIPART_HELPERS = Set.of("appendFile", "appendFiles", "appendText", "appendTexts", "appendDate", "appendDates",
             "appendDateTime", "appendDateTimes", "appendValue", "appendValues", "appendJson", "appendJsonArray");
@@ -378,8 +376,9 @@ final class TypeScriptSnippets {
      * or form with explode by default.</p>
      *
      * @param op the operation whose form parameters should be processed
+     * @return the {@code api/multipart.ts} functions the operation calls, empty for a URL-encoded form or no form
      */
-    static void processFormParameters(CodegenOperation op) {
+    static Set<String> processFormParameters(CodegenOperation op) {
         if (isUrlEncodedForm(op)) {
             op.vendorExtensions.put("x-url-encoded", true);
             for (CodegenParameter param : op.formParams) {
@@ -393,9 +392,9 @@ final class TypeScriptSnippets {
                 }
                 param.vendorExtensions.put("x-form-value", value);
             }
-            return;
+            return Set.of();
         }
-        Set<String> helpers = new TreeSet<>();
+        Set<String> helpers = new HashSet<>();
         for (CodegenParameter param : op.formParams) {
             String jsonType = jsonMediaType(param.contentType);
             String helper;
@@ -413,18 +412,7 @@ final class TypeScriptSnippets {
             param.vendorExtensions.put("x-form-append",
                     helper + "(formData, " + stringLiteral(param.baseName) + ", " + param.paramName + mediaType + ");");
         }
-        op.vendorExtensions.put(MULTIPART_HELPERS_KEY, helpers);
-    }
-
-    /**
-     * Returns the {@code api/multipart.ts} functions that {@link #processFormParameters} chose for an operation.
-     *
-     * @param op the operation
-     * @return the helper names, empty for an operation without a multipart body
-     */
-    @SuppressWarnings("unchecked")
-    static Set<String> multipartHelpers(CodegenOperation op) {
-        return (Set<String>) op.vendorExtensions.getOrDefault(MULTIPART_HELPERS_KEY, Set.of());
+        return helpers;
     }
 
     /**
