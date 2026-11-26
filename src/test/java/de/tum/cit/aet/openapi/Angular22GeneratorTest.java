@@ -30,7 +30,8 @@ class Angular22GeneratorTest {
         assertContains(api, "import { CreateOrUpdateTutorialGroupRequest } from '../model/create-or-update-tutorial-group-request';");
         // GETs stay available as Observable methods next to the resources.
         assertContains(api, "getTutorialGroups(courseId: number, registered?: boolean, campus?: Array<string>, options?: import('./request-options').RequestOptions): Observable<Array<TutorialGroupDetailData>>");
-        assertContains(api, "const url = `${this.basePath}/tutorialgroup/courses/${courseId}/tutorial-groups${queryString ? `?${queryString}` : ''}`;");
+        assertContains(api, "const query = queryString ? '?' + queryString : '';");
+        assertContains(api, "const url = `${this.basePath}/tutorialgroup/courses/${courseId}/tutorial-groups${query}`;");
         assertContains(api, "return this.http.post<TutorialGroupDetailData>(url, createOrUpdateTutorialGroupRequest, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
         assertContains(api, "return this.http.delete<void>(url, options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) });");
         assertContains(api, "return this.http.get(url, { ...(options && { ...(options.context !== undefined && { context: options.context }), ...(options.headers !== undefined && { headers: options.headers }) }), responseType: 'blob', observe: 'response' });");
@@ -197,7 +198,8 @@ class Angular22GeneratorTest {
 
         String api = Files.readString(tempDir.resolve("api/repository-api.ts"));
         assertContains(api, """
-                        const url = `${this.basePath}/api/exercises/${exerciseId}/repository${queryString ? `?${queryString}` : ''}`;
+                        const query = queryString ? '?' + queryString : '';
+                        const url = `${this.basePath}/api/exercises/${exerciseId}/repository${query}`;
                         const headers: Record<string, string> = Object.assign(Object.create(null), options?.headers);
                         if (authorization !== undefined && authorization !== null) {
                             Object.keys(headers).forEach(key => {
@@ -256,13 +258,15 @@ class Angular22GeneratorTest {
                         const queryParams = new URLSearchParams();
                         appendQueryParam(queryParams, 'url', urlParam);
                         const queryString = queryParams.toString();
-                        const url = `${this.basePath}/api/link-preview${queryString ? `?${queryString}` : ''}`;
+                        const query = queryString ? '?' + queryString : '';
+                        const url = `${this.basePath}/api/link-preview${query}`;
                 """);
         assertContains(api, "search(queryParam: string, paramsParam: number, headersParam?: string, queryStringParam?: string, queryParamsParam?: string, searchParamsParam?: string, appendQueryParamParam?: string, options?: import('./request-options').RequestOptions): Observable<Array<LinkPreview>>");
         assertContains(api, "const queryParamPath = encodeURIComponent(String(queryParam));");
         assertContains(api, "appendQueryParam(queryParams, 'queryString', queryStringParam);");
         assertContains(api, "appendQueryParam(queryParams, 'queryParams', queryParamsParam);");
-        assertContains(api, "const url = `${this.basePath}/api/search/${queryParamPath}/${paramsParam}${queryString ? `?${queryString}` : ''}`;");
+        assertContains(api, "const query = queryString ? '?' + queryString : '';");
+        assertContains(api, "const url = `${this.basePath}/api/search/${queryParamPath}/${paramsParam}${query}`;");
         assertContains(api, "headers['headers'] = String(headersParam);");
         assertContains(api, "upload(formDataParam?: string, options?: import('./request-options').RequestOptions): Observable<void>");
         assertContains(api, "appendText(formData, 'formData', formDataParam);");
@@ -282,7 +286,8 @@ class Angular22GeneratorTest {
         String api = Files.readString(tempDir.resolve("api/package-api.ts"));
         assertContains(api, "getPackage(_default: number, _package: string, _function?: string, _new?: boolean, options?: import('./request-options').RequestOptions): Observable<string>");
         assertContains(api, "const _packagePath = encodeURIComponent(String(_package));");
-        assertContains(api, "const url = `${this.basePath}/api/packages/${_default}/${_packagePath}${queryString ? `?${queryString}` : ''}`;");
+        assertContains(api, "const query = queryString ? '?' + queryString : '';");
+        assertContains(api, "const url = `${this.basePath}/api/packages/${_default}/${_packagePath}${query}`;");
 
         String resources = Files.readString(tempDir.resolve("api/package-resources.ts"));
         assertContains(resources, "export function getPackageResource(_default: Signal<number | undefined> | number, _package: Signal<string | undefined> | string, _function?: Signal<string | undefined> | string, params?: Signal<GetPackageParams>)");

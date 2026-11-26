@@ -49,7 +49,8 @@ export class {{classname}} {
         appendQueryParam(queryParams, {{{vendorExtensions.x-wire-name-literal}}}, {{paramName}}{{{vendorExtensions.x-query-style-args}}});
 {{/queryParams}}
         const queryString = queryParams.toString();
-        const url = `${this.basePath}{{{vendorExtensions.xPathTemplate}}}${queryString ? `?${queryString}` : ''}`;
+        const query = queryString ? '?' + queryString : '';
+        const url = `${this.basePath}{{{vendorExtensions.xPathTemplate}}}${query}`;
 {{/hasQueryParams}}
 {{^hasQueryParams}}
         const url = `${this.basePath}{{{vendorExtensions.xPathTemplate}}}`;
